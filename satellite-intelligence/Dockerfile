@@ -5,7 +5,7 @@
 #   docker build -f satellite-intelligence/Dockerfile satellite-intelligence
 
 # --- build -------------------------------------------------------------------
-FROM python:3.13-slim AS build
+FROM python:3.14-slim AS build
 
 COPY --from=ghcr.io/astral-sh/uv:0.11.0 /uv /usr/local/bin/uv
 
@@ -25,7 +25,7 @@ COPY src/ ./src/
 RUN VIRTUAL_ENV=/opt/venv uv pip install --no-cache --no-deps .
 
 # --- runtime -----------------------------------------------------------------
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 RUN groupadd --system --gid 10001 esurvey && \
     useradd --system --uid 10001 --gid esurvey --no-create-home esurvey
