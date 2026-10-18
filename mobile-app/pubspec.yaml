@@ -51,7 +51,7 @@ dependencies:
   # network, which is the only kind of reminder this app can promise.
   flutter_local_notifications: ^19.4.2
   webview_flutter: ^4.14.1
-  flutter_foreground_task: ^10.0.0
+  flutter_foreground_task: ^11.0.3
   record: 6.0.0
   flutter_pcm_sound: ^3.3.3
   web_socket_channel: ^3.0.3
