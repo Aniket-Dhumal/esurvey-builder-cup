@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="eSurvey">
+  <rect width="192" height="192" rx="40" fill="#1f7a3f"/>
+  <!-- A sprout: the one thing the whole platform is about. -->
+  <path d="M96 148V88" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+  <path d="M96 96c0-20-14-34-34-34 0 20 14 34 34 34Z" fill="#8fd6a6"/>
+  <path d="M96 84c0-22 16-38 38-38 0 22-16 38-38 38Z" fill="#c9f0d4"/>
+</svg>

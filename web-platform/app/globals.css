@@ -1,0 +1,420 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+
+   shadcn's semantic token names are the base so its components theme
+   correctly, mapped onto an agricultural palette. Severity and triage carry
+   their own scale on top: a disaster console is read under time pressure by
+   officers deciding whether public money is paid out, so the only saturated
+   colour on screen should mean something.
+
+   Note --accent is shadcn's *hover surface*, not a brand colour. The brand
+   green is --primary.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --radius: 0.5rem;
+
+  /* =====================================================================
+     Five colours: white, black, green, blue, yellow.
+
+     # How the roles divide
+
+     White is surface and black is ink; between them sits one neutral ramp,
+     which is black at decreasing strength and nothing else. Every grey in
+     this file used to be nudged green, including the type, and a tint on
+     every surface at once reads as a wash rather than as branding.
+
+     Green is the brand and it means good: the primary action, the focus
+     ring, a confirmed finding, negligible damage.
+
+     Blue means in progress. The console had no such colour, so a report
+     merely moving through review was painted from the same warm ramp as a
+     problem, and an officer scanning a queue could not tell work in hand
+     from work in trouble by colour alone.
+
+     Yellow means attention, and deepens as the matter gets worse.
+
+     # The one role five colours cannot fill
+
+     Danger. Red is the convention and it is not in the set, so refusals and
+     catastrophic damage use black on yellow -- the international hazard
+     pairing, and the only combination here that nobody mistakes for
+     anything else. It is a deliberate substitution, not an oversight.
+
+     One thing it gains: red and green are exactly the pair deuteranopia
+     confuses, so a palette that signals danger without red is more legible
+     to a colour-blind officer than the usual one, not less.
+     ===================================================================== */
+
+  /* --- white, and black at strength ---------------------------------- */
+  --background: #ffffff;
+  --foreground: #101014;
+
+  --card: #ffffff;
+  --card-foreground: #101014;
+  --popover: #ffffff;
+  --popover-foreground: #101014;
+
+  --secondary: #f4f4f5;
+  --secondary-foreground: #27272a;
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b;
+  --faint: #71717a;
+
+  --border: #e4e4e7;
+  --input: #d4d4d8;
+
+  /* --- green: the brand, and good news -------------------------------- */
+  --primary: #0f7a3d;
+  --primary-foreground: #ffffff;
+  --ring: #0f7a3d;
+
+  /* Hover stays neutral. Tinting it green lit every hoverable row in the
+     console, which spends the brand colour on nothing. */
+  --accent: #f4f4f5;
+  --accent-foreground: #101014;
+
+  /* --- blue: in progress, and information ----------------------------- */
+  --info: #1257a6;
+  --info-foreground: #ffffff;
+  --info-bg: #eff6ff;
+
+  /* --- danger: black on yellow ---------------------------------------- */
+  /* Two roles, which used to be one token and broke in the dark theme.
+
+     --destructive is standalone emphasis: a warning count on a plain card. It
+     has to invert with the theme, or it is near-black text on a near-black
+     surface -- which is exactly what the dashboard's "Awaiting action" and
+     "Escalated" figures were in dark mode: invisible.
+
+     --on-destructive-bg is the text that sits on the yellow hazard ground.
+     That ground is yellow in both themes, so this one stays dark in both. */
+  --destructive: #18181b;
+  --destructive-foreground: #ffffff;
+  --destructive-bg: #fde047;
+  --on-destructive-bg: #18181b;
+
+  /* --- the severity ramp: green, yellow, deeper yellow, hazard -------- */
+  --sev-negligible: #15803d;
+  --sev-moderate: #854d0e;
+  --sev-severe: #713f12;
+  --sev-catastrophic: #18181b;
+
+  --sev-negligible-bg: #f0fdf4;
+  --sev-moderate-bg: #fefce8;
+  --sev-severe-bg: #fef9c3;
+  --sev-catastrophic-bg: #fde047;
+
+  /* --- chart fills ----------------------------------------------------
+     Separate from the severity ramp above, and not an alias for it.
+
+     Those four are *text* weights, chosen to be legible on their own pale
+     backgrounds -- --sev-moderate is #854d0e, which reads as amber in a
+     six-word label and as a mud-brown slab when it fills a 48x116 bar. The
+     pipeline chart was using it for "Verified", so the one stage an officer
+     most needs to notice was the one painted a colour that appears nowhere
+     else in the console.
+
+     They are also the wrong *meaning*. The ramp encodes how badly a crop was
+     damaged; a pipeline stage is not a severity, and borrowing the scale said
+     that a verified report was moderately damaged.
+
+     Three fills, for the three things a stage can be: moving, waiting on a
+     person, or finished. Blue, yellow, green -- and grey for the states that
+     are nobody's work. */
+  --chart-moving: var(--info);
+  --chart-waiting: #eab308;
+  --chart-done: var(--primary);
+  --chart-inert: #d4d4d8;
+  /* The hazard fill: near-black on white, and near-white on black. The same
+     signal inverted rather than a second hue, because the palette has no red
+     and because red/green is the pair deuteranopia takes away. */
+  --chart-alert: #18181b;
+
+  /* A hairline around every bar.
+     WCAG 1.4.11 asks a meaningful shape to reach 3:1 against what it sits on,
+     and a saturated yellow cannot: #eab308 on white is 1.92:1, and the inert
+     grey is 1.48:1. The standard remedy is that either the fill *or* its
+     boundary carries the contrast, so the boundary does.
+     One neutral rather than a darker shade per fill, because it has to clear
+     3:1 on the white card and on the dark one -- #7d7d82 measures 4.10:1 and
+     4.41:1 -- and one token cannot drift out of step with five. On the blue,
+     green and hazard fills, which already pass on their own, it is invisible. */
+  --chart-edge: #7d7d82;
+
+  /* A field set against the cropland around it. Blue and amber, because the
+     console's palette is held to the pairs that survive deuteranopia, and
+     validated at OKLab ΔE 26+ under every colour-vision deficiency. The field
+     is the subject and takes the stronger hue. */
+  --chart-field: #1257a6;
+  --chart-peer: #b7791f;
+
+  /* The sidebar is the one place a brand tint is information rather than
+     decoration: it says which page you are on. */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #101014;
+  --sidebar-primary: #0f7a3d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f3ec;
+  --sidebar-accent-foreground: #0f7a3d;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #0f7a3d;
+}
+
+.dark {
+  --background: #0a0a0b;
+  --foreground: #fafafa;
+
+  --card: #161618;
+  --card-foreground: #fafafa;
+  --popover: #161618;
+  --popover-foreground: #fafafa;
+
+  --primary: #2ea865;
+  --primary-foreground: #04240f;
+
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+
+  --accent: #27272a;
+  --accent-foreground: #fafafa;
+
+  --info: #5fa8f5;
+  --info-foreground: #04203f;
+  --info-bg: #0e1f33;
+  --destructive-bg: #facc15;
+  --destructive: #facc15;
+  --on-destructive-bg: #18181b;
+  --destructive-foreground: #fafafa;
+
+  --border: #27272a;
+  --input: #3f3f46;
+  --ring: #2ea865;
+
+  --faint: #82828c;
+
+  --sev-negligible: #4ade80;
+  --sev-moderate: #facc15;
+  --sev-severe: #eab308;
+  --sev-catastrophic: #18181b;
+
+  --sev-negligible-bg: #062e16;
+  --sev-moderate-bg: #2e2408;
+  --sev-severe-bg: #3d2f08;
+  --sev-catastrophic-bg: #facc15;
+
+  /* Lifted, because a fill that carries meaning has to hold it against a
+     dark ground as well as a white one. */
+  --chart-moving: var(--info);
+  --chart-waiting: #facc15;
+  --chart-done: var(--primary);
+  --chart-inert: #52525b;
+  --chart-alert: #fafafa;
+  --chart-field: #3b8fe0;
+  --chart-peer: #b07512;
+
+
+  --sidebar: #161618;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #2ea865;
+  --sidebar-primary-foreground: #04240f;
+  --sidebar-accent: #12291d;
+  --sidebar-accent-foreground: #4ade80;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #2ea865;
+}
+
+/* Follow the OS when no explicit class is set, so the console matches the rest
+   of the officer's desktop without a toggle. */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --background: #0a0a0b;
+    --foreground: #fafafa;
+
+    --card: #161618;
+    --card-foreground: #fafafa;
+    --popover: #161618;
+    --popover-foreground: #fafafa;
+
+    --primary: #2ea865;
+    --primary-foreground: #04240f;
+
+    --secondary: #27272a;
+    --secondary-foreground: #fafafa;
+
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+
+    --accent: #27272a;
+    --accent-foreground: #fafafa;
+
+  --info: #5fa8f5;
+  --info-foreground: #04203f;
+  --info-bg: #0e1f33;
+    --destructive-bg: #facc15;
+    --destructive: #facc15;
+    --on-destructive-bg: #18181b;
+    --destructive-foreground: #fafafa;
+
+    --border: #27272a;
+    --input: #3f3f46;
+    --ring: #2ea865;
+
+    --faint: #82828c;
+
+    --sev-negligible: #4ade80;
+    --sev-moderate: #facc15;
+    --sev-severe: #eab308;
+    --sev-catastrophic: #18181b;
+
+    --sev-negligible-bg: #062e16;
+    --sev-moderate-bg: #2e2408;
+    --sev-severe-bg: #3d2f08;
+    --sev-catastrophic-bg: #facc15;
+
+    --chart-moving: var(--info);
+    --chart-waiting: #facc15;
+    --chart-done: var(--primary);
+    --chart-inert: #52525b;
+    --chart-alert: #fafafa;
+  --chart-field: #3b8fe0;
+  --chart-peer: #b07512;
+
+
+    --sidebar: #161618;
+    --sidebar-foreground: #fafafa;
+    --sidebar-primary: #2ea865;
+    --sidebar-primary-foreground: #04240f;
+    --sidebar-accent: #12291d;
+    --sidebar-accent-foreground: #4ade80;
+    --sidebar-border: #27272a;
+    --sidebar-ring: #2ea865;
+  }
+}
+
+@theme inline {
+  /* Inter for Latin, Noto Sans Devanagari for Marathi. The browser falls
+     through per glyph, so a bilingual line takes each script from the face
+     that actually drew it instead of from whatever the machine had. */
+  --font-sans: var(--font-inter), var(--font-devanagari), system-ui, sans-serif;
+  --font-heading: var(--font-sans);
+  --font-mono: var(--font-mono-face), ui-monospace, "Cascadia Mono", Menlo,
+    Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-info-bg: var(--info-bg);
+  --color-destructive-bg: var(--destructive-bg);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-on-destructive-bg: var(--on-destructive-bg);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-faint: var(--faint);
+
+  --color-sev-negligible: var(--sev-negligible);
+  --color-sev-moderate: var(--sev-moderate);
+  --color-sev-severe: var(--sev-severe);
+  --color-sev-catastrophic: var(--sev-catastrophic);
+
+  --color-chart-moving: var(--chart-moving);
+  --color-chart-waiting: var(--chart-waiting);
+  --color-chart-done: var(--chart-done);
+  --color-chart-inert: var(--chart-inert);
+  --color-chart-alert: var(--chart-alert);
+  --color-chart-edge: var(--chart-edge);
+  --color-chart-field: var(--chart-field);
+  --color-chart-peer: var(--chart-peer);
+
+  --color-sev-negligible-bg: var(--sev-negligible-bg);
+  --color-sev-moderate-bg: var(--sev-moderate-bg);
+  --color-sev-severe-bg: var(--sev-severe-bg);
+  --color-sev-catastrophic-bg: var(--sev-catastrophic-bg);
+
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* Identifiers, coordinates and measurements are compared column-wise, so they
+   are tabular and monospaced throughout. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reference numbers, LGD codes, hashes: things read a character at a time and
+   compared down a column. A loaded face rather than whatever monospace the
+   operating system happens to ship, which is what made CLR-2026-496-00001 look
+   like it belonged to a different application. */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Scrollbars sized so a dense table does not lose a column to chrome. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 6px;
+  border: 2px solid var(--background);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
