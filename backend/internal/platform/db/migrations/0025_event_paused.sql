@@ -1,0 +1,22 @@
+-- Pausing a survey event.
+--
+-- # Why a state of its own rather than close-and-reopen
+--
+-- The lifecycle already had `closed → open`, so a district could have paused
+-- filing by closing the event and reopening it later. It should not: `closed`
+-- means the filing deadline has been reached, and a district that suspends
+-- collection for three days while a road is impassable has not reached any
+-- deadline. Reusing it would make the event's own history say the Collector
+-- ended filing and changed their mind, and would leave `closed` meaning two
+-- different things depending on what happened next.
+--
+-- `paused` says the one thing it means: no new reports for now, the deadline
+-- still stands, and everything already filed keeps moving up the ladder.
+--
+-- # Why this migration contains nothing else
+--
+-- Migrations run inside a transaction, and Postgres will not let a new enum
+-- value be *used* in the transaction that added it. Everything that reads or
+-- writes 'paused' is therefore in 0026, which is a separate transaction.
+
+ALTER TYPE survey_event_state ADD VALUE IF NOT EXISTS 'paused' AFTER 'open';

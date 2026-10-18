@@ -1,0 +1,594 @@
+{{- define "report" -}}
+<section class="report" lang="{{ .LangTag }}">
+
+  {{- with .Cover }}
+  <section class="cover">
+    <div class="mast">
+      <p class="brand">{{ .Government }}</p>
+      <p class="brandsub">{{ .Department }}</p>
+      {{- if .Office }}<p class="brandsub">{{ .Office }}</p>{{ end }}
+    </div>
+
+    <h1 class="cover-title">{{ .Title }}</h1>
+    {{- if .FormCode }}<p class="formcode">{{ .FormCode }}</p>{{ end }}
+
+    <div class="stamp {{ .StampKey }}">{{ .Stamp }}</div>
+
+    <table class="coverfields">
+      <colgroup><col class="cf-l"><col class="cf-v"></colgroup>
+      <tbody>
+        <tr><td class="lbl">{{ $.LabelReference }}</td><td class="val ref">{{ .Reference }}</td></tr>
+        {{- if .Supersedes }}
+        <tr><td class="lbl">{{ $.LabelSupersedes }}</td><td class="val">{{ .Supersedes }}</td></tr>
+        {{- end }}
+        {{- range .Fields }}
+        <tr><td class="lbl">{{ .Label }}</td><td class="val">{{ .Value }}</td></tr>
+        {{- end }}
+      </tbody>
+    </table>
+
+    {{- if .LegalBasis }}
+    <div class="legal">
+      <h2>{{ .LegalHeading }}</h2>
+      {{- range .LegalBasis }}<p>{{ . }}</p>{{ end }}
+    </div>
+    {{- end }}
+
+    <p class="madeby">{{ .ComputerMade }}</p>
+
+    <div class="contents">
+      <h2>{{ .ContentsLabel }}</h2>
+      <table class="toc">
+        <colgroup><col class="toc-n"><col></colgroup>
+        <tbody>
+          {{- range .Contents }}
+          <tr><td class="cnum">{{ .Number }}</td><td>{{ .Title }}</td></tr>
+          {{- end }}
+        </tbody>
+      </table>
+    </div>
+
+    <p class="coverdigest"><span class="tag">{{ .DigestLabel }}</span>
+      <code>{{ .Digest }}</code></p>
+  </section>
+  {{- end }}
+
+  <header class="head">
+    <div class="headline-bar">
+      <h1>{{ .Heading }}</h1>
+      <span class="stamp {{ .StampKey }}">{{ .Stamp }}</span>
+    </div>
+    <table class="ident">
+      <colgroup><col class="id-l"><col class="id-v"><col class="id-l"><col class="id-v"></colgroup>
+      <tbody>
+        <tr>
+          <td class="lbl">{{ .LabelReference }}</td><td class="val ref">{{ .Reference }}</td>
+          <td class="lbl">{{ .LabelFarmer }}</td><td class="val">{{ .FarmerName }}</td>
+        </tr>
+        <tr>
+          <td class="lbl">{{ .LabelSurvey }}</td><td class="val">{{ .SurveyNumber }}</td>
+          <td class="lbl">{{ .LabelPlace }}</td><td class="val">{{ .Place }}</td>
+        </tr>
+        <tr>
+          <td class="lbl">{{ .LabelCrop }}</td><td class="val">{{ .Crop }}</td>
+          <td class="lbl">{{ .LabelEvent }}</td><td class="val">{{ .Calamity }} · {{ .OccurredAt }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </header>
+
+  <section class="summary">
+    <div class="panel">
+      <p class="panel-label">{{ .LabelDenominator }}</p>
+      {{- if .DenominatorKnown }}
+      <p class="figure">{{ .DenominatorValue }}</p>
+      <p class="basis">{{ .DenominatorBasis }}</p>
+      {{- range .DenominatorWorking }}<p class="working">{{ . }}</p>{{ end }}
+      {{- else }}
+      <p class="absent">{{ .DenominatorAbsent }}</p>
+      {{- end }}
+    </div>
+
+    <div class="panel accent">
+      <p class="panel-label">{{ .LabelAssessedLoss }}</p>
+      {{- if .LossKnown }}
+      <p class="figure big">{{ .LossFigure }}</p>
+      {{- range .DecidedBy }}<p class="basis">{{ . }}</p>{{ end }}
+      {{- if .DecidedAt }}<p class="basis">{{ .DecidedAt }}</p>{{ end }}
+      {{- else }}
+      <p class="absent">{{ .LabelNoFigureYet }}</p>
+      {{- end }}
+      {{- if .Triage }}<p class="triage">{{ .Triage }}</p>{{ end }}
+    </div>
+  </section>
+
+  {{- if .Headline }}
+  <section class="sec headline-sec">
+    <h2 class="plain">{{ .LabelWhatDecided }}</h2>
+    <table class="rows two">
+      <colgroup><col class="c-param"><col class="c-obs"><col></colgroup>
+      <thead>
+        <tr>
+          <th>{{ .ColParameter }}</th>
+          <th>{{ .ColObserved }}</th>
+          <th>{{ .ColEffect }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{- range .Headline }}
+        <tr>
+          <td class="param">{{ .Parameter }}</td>
+          <td class="value">{{ .Observed }}</td>
+          <td class="effect">{{ .Effect }}</td>
+        </tr>
+        {{- end }}
+      </tbody>
+    </table>
+  </section>
+  {{- end }}
+
+  {{- range .Sections }}
+  <section class="sec">
+    <h2><span class="num">{{ .Number }}</span>{{ .Title }}</h2>
+    {{- if .Preamble }}<p class="preamble">{{ .Preamble }}</p>{{ end }}
+
+    {{- with .Figure }}
+    <figure class="walk">
+      {{- if .SVG }}{{ .SVG }}{{ end }}
+      {{- if .Legend }}
+      <ul class="legend">
+        {{- range .Legend }}<li><span class="key {{ .Key }}"></span>{{ .Label }}</li>{{ end }}
+      </ul>
+      {{- end }}
+      {{- if .Caption }}<figcaption>{{ .Caption }}</figcaption>{{ end }}
+      {{- if .Plates }}
+      <div class="plates">
+        {{- range .Plates }}
+        <div class="plate">
+          <img src="{{ .Src }}" alt="{{ .Title }}">
+          <div class="plate-body">
+            <p class="plate-title">{{ .Title }}</p>
+            {{- if .Meta }}<p class="plate-meta">{{ .Meta }}</p>{{ end }}
+            {{- if .Finding }}<p class="plate-finding">{{ .Finding }}</p>{{ end }}
+          </div>
+        </div>
+        {{- end }}
+      </div>
+      {{- end }}
+    </figure>
+    {{- end }}
+
+    {{- if .Rows }}
+    <table class="rows{{ if not .ShowEvidence }} no-ev{{ end }}">
+      <colgroup>
+        <col class="c-param"><col class="c-obs"><col class="c-src">
+        <col class="c-ref"><col class="c-eff">
+        {{- if .ShowEvidence }}<col class="c-ev">{{ end }}
+      </colgroup>
+      <thead>
+        <tr>
+          <th>{{ $.ColParameter }}</th>
+          <th>{{ $.ColObserved }}</th>
+          <th>{{ $.ColSource }}</th>
+          <th>{{ $.ColReference }}</th>
+          <th>{{ $.ColEffect }}</th>
+          {{- if .ShowEvidence }}<th>{{ $.ColEvidence }}</th>{{ end }}
+        </tr>
+      </thead>
+      <tbody>
+        {{- $sec := . }}
+        {{- range .Rows }}
+        <tr class="{{ if .Absent }}is-absent{{ end }}">
+          <td class="param">
+            <span class="pname">{{ .Parameter }}</span>
+            {{- if .Role }}<span class="role {{ .RoleKey }}">{{ .Role }}</span>{{ end }}
+          </td>
+          {{- if .Absent }}
+          <td class="value absent" colspan="{{ $sec.EvidenceSpan }}">{{ $.LabelNotAvailable }} — {{ .AbsentWhy }}</td>
+          {{- else }}
+          <td class="value">{{ .Observed }}</td>
+          <td class="src">{{ .Source }}</td>
+          <td class="ref">{{ .Reference }}</td>
+          <td class="effect">
+            {{ .Effect }}
+            {{- range .Working }}
+            <span class="working"><span class="tag">{{ $.LabelWorking }}</span>{{ . }}</span>
+            {{- end }}
+            {{- range .Caveats }}
+            <span class="caveat"><span class="tag">{{ $.LabelCaveats }}</span>{{ . }}</span>
+            {{- end }}
+          </td>
+          {{- if $sec.ShowEvidence }}<td class="evidence">{{ .Evidence }}</td>{{ end }}
+          {{- end }}
+        </tr>
+        {{- end }}
+      </tbody>
+    </table>
+    {{- end }}
+
+    {{- if .Notes }}
+    <ul class="notes">
+      {{- range .Notes }}<li>{{ . }}</li>{{ end }}
+    </ul>
+    {{- end }}
+  </section>
+  {{- end }}
+
+  {{- with .Signatures }}
+  <section class="signatures">
+    <h2 class="plain">{{ .Heading }}</h2>
+    <p class="note">{{ .Note }}</p>
+    <div class="sigrow">
+      {{- range .Blocks }}
+      <div class="sigblock">
+        <div class="sigline"></div>
+        <p class="siglabel">{{ .SignLabel }}</p>
+        {{- if .Name }}<p class="signame">{{ .Name }}</p>{{ end }}
+        <p class="sigdesig">{{ .Designation }}</p>
+        {{- if .Office }}<p class="sigoffice">{{ .Office }}</p>{{ end }}
+        <p class="sigdate">{{ .DateLabel }}: ____________</p>
+        <div class="seal">{{ .SealLabel }}</div>
+      </div>
+      {{- end }}
+    </div>
+    <p class="placedate">{{ .Place }} &nbsp;·&nbsp; {{ .Date }}</p>
+  </section>
+  {{- end }}
+
+  <footer class="foot">
+    <p><span class="tag">{{ .LabelDigest }}</span><code>{{ .Digest }}</code></p>
+    <p class="generated">{{ .Reference }} &nbsp;·&nbsp; {{ .GeneratedAt }}</p>
+  </footer>
+</section>
+{{- end -}}
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>पीक नुकसान मूल्यांकन अहवाल · Crop Loss Assessment Report</title>
+<style>
+{{ .Fonts }}
+/* The Marathi half is printed first and read by the farmer, so the Devanagari
+   stack leads, and every rule that sets a line-height leaves room for the
+   shirorekha above and the conjuncts below. A clipped Marathi glyph is a
+   different word, which is why nothing here goes below 1.45. */
+:root {
+  --ink:      #14171a;
+  --muted:    #5d6469;
+  --faint:    #8b9298;
+  --rule:     #d6dade;
+  --hairline: #e9ecee;
+  --band:     #f7f8f9;
+  --paper:    #ffffff;
+
+  /* eSurvey's own colour, used for the rules that structure the page and for
+     nothing else. A report is not a dashboard. */
+  --accent:   #1c5d4a;
+
+  --determines:   #8a3324;
+  --corroborates: #24506e;
+  --context:      #5d6469;
+  --absent:       #7b8288;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: {{ .Stack }};
+  font-size: 9.5pt;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.report { padding: 0; }
+
+/* The two halves are separate documents: either can be detached and read
+   alone, so the English one starts on a fresh sheet. */
+.report + .report { page-break-before: always; }
+
+h1 { font-size: 15pt; margin: 0; line-height: 1.4; font-weight: 700; }
+h2 { font-size: 11pt; margin: 0 0 5pt; line-height: 1.45; font-weight: 700; }
+
+/* ---------- cover ------------------------------------------------------
+   A record is picked up before it is read, and the first page is where a file
+   clerk, a hearing officer and a farmer all decide what they are holding.
+   Everything on it answers one of their first questions. */
+.cover { page-break-after: always; padding-top: 4mm; }
+
+.mast { text-align: center; padding-bottom: 5mm; border-bottom: 2.5pt solid var(--accent); }
+.brand {
+  font-size: 20pt; font-weight: 700; margin: 0;
+  letter-spacing: -0.01em; color: var(--accent); line-height: 1.35;
+}
+.brandsub { font-size: 10pt; color: var(--muted); margin: 1pt 0 0; line-height: 1.5; }
+
+.cover-title { text-align: center; font-size: 17pt; margin: 9mm 0 2mm; line-height: 1.4; }
+.formcode {
+  text-align: center; font-size: 8.5pt; color: var(--faint);
+  letter-spacing: 0.08em; margin: 0;
+}
+
+.cover .stamp { display: block; width: fit-content; margin: 6mm auto 8mm; }
+
+.coverfields { width: 76%; margin: 0 auto 8mm; border-collapse: collapse; }
+.cf-l { width: 40%; }
+.coverfields td {
+  padding: 3.5pt 0; border-bottom: 1px solid var(--hairline);
+  font-size: 9.5pt; line-height: 1.5; vertical-align: top;
+}
+.coverfields .lbl { color: var(--muted); }
+.coverfields .val { font-weight: 600; }
+.val.ref { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+.legal {
+  width: 76%; margin: 0 auto 6mm;
+  border-left: 2.5pt solid var(--accent); padding: 1mm 0 1mm 4mm;
+}
+.legal h2 { font-size: 9pt; margin: 0 0 2pt; letter-spacing: 0.06em; color: var(--muted); }
+.legal p { margin: 0; font-size: 9pt; line-height: 1.55; }
+
+.madeby { width: 76%; margin: 0 auto 8mm; font-size: 8.5pt; color: var(--muted); line-height: 1.55; }
+
+.contents { width: 76%; margin: 0 auto; }
+.contents h2 { font-size: 9pt; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 3pt; }
+.toc { width: 100%; border-collapse: collapse; }
+.toc-n { width: 9mm; }
+.toc td {
+  font-size: 9pt; padding: 2.5pt 0; line-height: 1.5;
+  border-bottom: 1px solid var(--hairline); vertical-align: top;
+}
+.toc .cnum { color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.coverdigest { width: 76%; margin: 8mm auto 0; font-size: 7.5pt; color: var(--faint); word-break: break-all; }
+
+/* ---------- running head ---------------------------------------------- */
+.head { border-bottom: 2.5pt solid var(--accent); padding-bottom: 5pt; margin-bottom: 7pt; }
+.headline-bar {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 6mm; margin-bottom: 5pt;
+}
+
+.stamp {
+  display: inline-block; padding: 1.5pt 7pt;
+  font-weight: 700; font-size: 8pt; letter-spacing: 0.09em;
+  border: 1.5pt solid; white-space: nowrap;
+}
+.stamp.provisional { color: #8a5a00; border-color: #8a5a00; background: #fdf6e7; }
+.stamp.final       { color: #14532d; border-color: #14532d; background: #eef6f0; }
+
+.ident { width: 100%; border-collapse: collapse; }
+.id-l { width: 13%; } .id-v { width: 37%; }
+.ident td { padding: 2pt 6pt 2pt 0; font-size: 9pt; line-height: 1.5; vertical-align: top; }
+.ident .lbl { color: var(--muted); }
+.ident .val { font-weight: 600; }
+
+/* ---------- summary ----------------------------------------------------
+   The denominator sits beside the figure, never below it. The whole argument
+   of this document is that a percentage means nothing without what it is a
+   percentage of, and a layout that separates them undoes it. */
+.summary { display: flex; gap: 5mm; margin-bottom: 9pt; }
+.panel {
+  flex: 1; border: 1px solid var(--rule); border-top: 2.5pt solid var(--rule);
+  padding: 4mm; background: var(--band);
+}
+.panel.accent { border-top-color: var(--accent); background: #fff; }
+.panel-label {
+  font-size: 8pt; letter-spacing: 0.08em; color: var(--muted);
+  margin: 0 0 3pt; font-weight: 600;
+}
+.figure {
+  font-size: 15pt; font-weight: 700; margin: 0 0 2pt; line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.figure.big { font-size: 26pt; color: var(--accent); }
+.basis   { color: var(--muted); font-size: 8.5pt; margin: 1pt 0; line-height: 1.5; }
+.working { color: var(--muted); font-size: 8.5pt; margin: 2pt 0 0; line-height: 1.5; }
+.absent  { color: var(--absent); font-style: italic; margin: 2pt 0; line-height: 1.55; }
+.triage  { margin: 4pt 0 0; font-size: 7.5pt; letter-spacing: 0.07em; color: var(--faint); }
+
+/* ---------- sections and the table ------------------------------------
+   table-layout: fixed with a colgroup, so every section's grid lines up with
+   every other. Auto layout sizes each table to its own longest cell, which
+   makes the columns wander from page to page and reads as a document nobody
+   laid out. */
+.sec { margin-bottom: 8pt; }
+.sec h2 {
+  padding-bottom: 2.5pt; border-bottom: 1.5pt solid var(--ink);
+  display: flex; align-items: baseline; gap: 3mm;
+}
+.sec h2 .num {
+  color: var(--accent); font-variant-numeric: tabular-nums;
+  min-width: 6mm; display: inline-block;
+}
+.sec h2.plain { border-bottom-color: var(--rule); }
+
+.preamble { margin: 4pt 0 5pt; font-size: 9pt; line-height: 1.55; }
+
+/* The walk: a map of the parcel and one photograph from each point.
+   Kept together on a page where the paper allows -- a plate on one side of a
+   fold and its finding on the other is how a reader ends up attributing a
+   photograph to the wrong corner of a field. */
+figure.walk { margin: 5pt 0 7pt; break-inside: avoid; }
+svg.fieldmap { width: 100%; height: auto; max-height: 78mm; display: block; }
+svg.fieldmap .parcel {
+  fill: color-mix(in srgb, var(--accent) 6%, transparent);
+  stroke: var(--ink); stroke-width: 1.2; }
+/* The assumption, drawn as one: nothing recorded what the lens saw. */
+svg.fieldmap .coverage {
+  fill: color-mix(in srgb, var(--accent) 7%, transparent);
+  stroke: var(--accent); stroke-width: 0.6; stroke-dasharray: 3 2.5; opacity: .75; }
+/* The handset's own estimate, which is a measurement. */
+svg.fieldmap .accuracy { fill: none; stroke: var(--accent); stroke-width: 0.8; }
+svg.fieldmap .suggested { fill: none; stroke: var(--ink); stroke-width: 1.1; }
+svg.fieldmap .stood { fill: var(--accent); }
+svg.fieldmap .moved { stroke: var(--ink); stroke-width: 0.8; stroke-dasharray: 2 2; }
+svg.fieldmap .pointno {
+  font-size: 8px; font-weight: 600; text-anchor: middle; fill: var(--ink); }
+svg.fieldmap .pointno.missed { fill: var(--muted); }
+svg.fieldmap .scalebar { stroke: var(--ink); stroke-width: 1; }
+svg.fieldmap .scaletext { font-size: 7px; fill: var(--muted); }
+
+ul.legend {
+  list-style: none; margin: 3pt 0 0; padding: 0;
+  display: flex; flex-wrap: wrap; gap: 2mm 5mm; font-size: 7.5pt;
+  color: var(--muted);
+}
+ul.legend .key {
+  display: inline-block; width: 7pt; height: 7pt; margin-right: 1.5mm;
+  vertical-align: -0.5pt; border-radius: 50%;
+}
+ul.legend .key.stood { background: var(--accent); }
+ul.legend .key.suggested { border: 1pt solid var(--ink); }
+ul.legend .key.accuracy { border: 1pt solid var(--accent); }
+ul.legend .key.coverage {
+  border: 1pt dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+figure.walk figcaption {
+  margin-top: 3pt; font-size: 7.5pt; color: var(--muted); line-height: 1.5; }
+
+/* One photograph per point, each with what was measured in it. Two across:
+   four down a page would push the table onto a second sheet, and an officer
+   comparing corners wants them side by side. */
+.plates {
+  margin-top: 5pt; display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.plate { break-inside: avoid; border: 0.6pt solid var(--rule); }
+.plate img {
+  width: 100%; height: 42mm; object-fit: cover; display: block;
+  border-bottom: 0.6pt solid var(--rule); }
+.plate-body { padding: 2mm 2.5mm 2.5mm; }
+.plate-title { font-size: 8pt; font-weight: 600; margin: 0; }
+.plate-meta {
+  font-size: 7pt; color: var(--muted); margin: 0.6mm 0 0;
+  font-variant-numeric: tabular-nums; }
+.plate-finding { font-size: 7.5pt; margin: 1.5mm 0 0; line-height: 1.5; }
+
+table.rows { width: 100%; border-collapse: collapse; table-layout: fixed; }
+
+.c-param { width: 15%; } .c-obs { width: 12%; } .c-src { width: 16%; }
+.c-ref   { width: 15%; } .c-eff { width: 30%; } .c-ev  { width: 12%; }
+.no-ev .c-eff { width: 42%; }
+.two .c-param { width: 22%; } .two .c-obs { width: 14%; }
+
+table.rows th {
+  text-align: left; font-size: 7.5pt; font-weight: 700;
+  letter-spacing: 0.07em; color: var(--muted);
+  border-bottom: 1px solid var(--ink);
+  padding: 3pt 4pt 3pt 0; vertical-align: bottom;
+}
+table.rows td {
+  padding: 4.5pt 4pt 4.5pt 0; vertical-align: top;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 8.5pt; line-height: 1.55;
+  overflow-wrap: break-word;
+}
+table.rows tbody tr:nth-child(even) { background: var(--band); }
+
+.param .pname { font-weight: 700; display: block; }
+.value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.src, .ref { color: var(--muted); }
+.evidence { color: var(--muted); font-size: 8pt; overflow-wrap: anywhere; }
+
+.two td { font-size: 9pt; }
+
+/* The role marker is what stops the table implying, by layout, that every row
+   fed the result. Set in type as well as colour, so it survives a monochrome
+   photocopy -- which is how most of these will be read. */
+.role {
+  display: inline-block; margin-top: 2.5pt;
+  font-size: 7pt; font-weight: 700; letter-spacing: 0.07em;
+  padding: 0.5pt 4pt; border: 0.75pt solid; border-radius: 1.5pt;
+}
+.role.determines   { color: var(--determines);   border-color: var(--determines); }
+.role.corroborates { color: var(--corroborates); border-color: var(--corroborates); }
+.role.context      { color: var(--context);      border-color: var(--rule); }
+.role.excluded     { color: var(--absent);       border-color: var(--rule); }
+
+/* Working and caveats live inside the effect cell rather than in a full-width
+   row beneath it. A sub-row breaks the grid every time it appears, which is
+   most rows, and the derivation belongs with the sentence it derives. */
+.effect .working, .effect .caveat {
+  display: block; margin-top: 3pt; font-size: 7.5pt; line-height: 1.5;
+  padding-left: 3mm; border-left: 1.5pt solid var(--rule);
+}
+.effect .caveat { color: var(--determines); border-left-color: var(--determines); }
+.tag {
+  font-size: 6.5pt; font-weight: 700; letter-spacing: 0.08em;
+  color: var(--faint); margin-right: 3pt;
+}
+
+tr.is-absent .value { font-weight: 400; }
+td.value.absent { font-style: italic; color: var(--absent); font-weight: 400; }
+
+.notes { margin: 5pt 0 0; padding-left: 4mm; }
+.notes li { font-size: 8.5pt; color: var(--muted); line-height: 1.55; margin-bottom: 2pt; }
+
+/* ---------- signatures ------------------------------------------------
+   Printed empty, with room for a wet signature and a seal. A generated
+   document showing a name where a signature belongs invites the question of
+   who actually checked it, and at the moment of printing the answer is
+   nobody. */
+.signatures { page-break-inside: avoid; margin-top: 10pt; }
+.signatures .note { font-size: 8.5pt; color: var(--muted); margin: 0 0 6mm; }
+.sigrow { display: flex; gap: 8mm; flex-wrap: wrap; }
+.sigblock { flex: 1 1 42%; min-width: 58mm; }
+.sigline { border-bottom: 1px solid var(--ink); height: 13mm; }
+.siglabel { font-size: 7.5pt; color: var(--faint); margin: 2pt 0 4pt; letter-spacing: 0.06em; }
+.signame  { font-weight: 700; margin: 0; font-size: 9.5pt; line-height: 1.5; }
+.sigdesig { margin: 0; font-size: 9pt; line-height: 1.5; }
+.sigoffice{ margin: 0; font-size: 8.5pt; color: var(--muted); line-height: 1.5; }
+.sigdate  { margin: 3pt 0 0; font-size: 8.5pt; color: var(--muted); }
+.seal {
+  margin-top: 4mm; width: 22mm; height: 22mm;
+  border: 1px dashed var(--rule); border-radius: 50%;
+  font-size: 7pt; color: var(--faint);
+  display: flex; align-items: center; justify-content: center;
+}
+.placedate { margin-top: 6mm; font-size: 9pt; }
+
+.foot {
+  margin-top: 10pt; padding-top: 5pt;
+  border-top: 1px solid var(--rule);
+  color: var(--faint); font-size: 7.5pt;
+}
+.foot code { word-break: break-all; font-size: 7pt; }
+.foot .generated { margin: 2pt 0 0; }
+
+/* A heading stranded at the foot of a page with its table overleaf reads as a
+   section with no content; a header row that does not repeat leaves the
+   continuation unreadable. */
+.sec h2 { page-break-after: avoid; }
+table.rows tr { page-break-inside: avoid; }
+table.rows thead { display: table-header-group; }
+
+@page { size: A4; margin: 14mm 12mm; }
+
+@media screen {
+  body { background: #eceff1; padding: 8mm 0; }
+  .report {
+    background: #fff; max-width: 210mm; margin: 0 auto 8mm;
+    padding: 14mm 12mm; box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+}
+
+/* A farmer reads their copy on a phone. The page keeps its A4 form for print
+   and on a wide screen; on a narrow one the margins go and the cover's inset
+   columns take the full width, so nothing is read at a sixth of its size. */
+@media screen and (max-width: 640px) {
+  body { background: #fff; padding: 0; }
+  .report { box-shadow: none; margin: 0; padding: 16px 14px; max-width: none; }
+  .coverfields, .legal, .madeby, .contents, .coverdigest { width: 100%; }
+  table { font-size: 12px; }
+  table.rows { display: block; overflow-x: auto; }
+}
+</style>
+</head>
+<body>
+{{ template "report" .Marathi }}
+{{ template "report" .English }}
+</body>
+</html>

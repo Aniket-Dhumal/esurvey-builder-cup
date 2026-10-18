@@ -1,0 +1,386 @@
+{{- /*
+  The Crop Loss Assessment Report, as printed.
+
+  Marathi first, English beside it. The form an officer and a farmer sign is
+  read in Marathi; the district and state offices that aggregate these read
+  English. Picking one language serves one of them.
+
+  Laid out for A4 with a print stylesheet rather than generated as a PDF: a
+  browser already has a layout engine, a Devanagari font and a print-to-PDF
+  path, and the same page is readable on a phone in a field.
+*/ -}}
+<!doctype html>
+<html lang="mr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Reference}} — पीक नुकसान मूल्यांकन अहवाल</title>
+<style>
+  :root {
+    --ink: #16181c;
+    --muted: #5d6470;
+    --faint: #8b929e;
+    --rule: #c9ced8;
+    --rule-strong: #7b838f;
+    --tint: #f4f6f9;
+    --flag: #8a4b00;
+    --flag-bg: #fdf3e6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #eef0f4;
+    color: var(--ink);
+    font-family: "Nirmala UI", "Noto Sans Devanagari", "Mangal",
+                 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .sheet {
+    max-width: 200mm;
+    margin: 0 auto;
+    background: #fff;
+    padding: 14mm 14mm 12mm;
+    border: 1px solid var(--rule);
+  }
+
+  /* English gloss beside every Marathi label. Smaller and lighter so the
+     Marathi reads as the form and the English as the annotation. */
+  .en { color: var(--muted); font-weight: 400; font-size: 0.88em; }
+  .muted { color: var(--muted); }
+  .faint { color: var(--faint); }
+
+  header { border-bottom: 2px solid var(--rule-strong); padding-bottom: 10px; }
+  .authority { font-size: 11px; letter-spacing: .04em; color: var(--muted); }
+  h1 { margin: 6px 0 2px; font-size: 18px; line-height: 1.25; }
+  h1 .en { display: block; font-size: 12px; letter-spacing: .02em; margin-top: 2px; }
+
+  .refline {
+    display: flex; flex-wrap: wrap; gap: 6px 22px;
+    margin-top: 9px; font-size: 11.5px;
+  }
+  .refline b { font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+
+  h2 {
+    margin: 18px 0 7px;
+    font-size: 12.5px;
+    padding-bottom: 3px;
+    border-bottom: 1px solid var(--rule);
+  }
+  h2 .en { font-size: 11px; }
+
+  dl.grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 7px 22px;
+    margin: 0;
+  }
+  dl.grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  dl.grid.four  { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  dt { font-size: 10.5px; color: var(--muted); }
+  dd { margin: 1px 0 0; font-weight: 600; }
+  dd.plain { font-weight: 400; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  caption { text-align: left; font-size: 10.5px; color: var(--muted); padding-bottom: 4px; }
+  th, td {
+    border: 1px solid var(--rule);
+    padding: 5px 7px;
+    text-align: left;
+    vertical-align: top;
+  }
+  thead th { background: var(--tint); font-size: 10.5px; font-weight: 600; }
+  th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tfoot td { background: var(--tint); font-weight: 700; }
+
+  .flag {
+    margin-top: 9px; padding: 7px 10px;
+    background: var(--flag-bg); border-left: 3px solid var(--flag);
+    color: var(--flag); font-size: 11px;
+  }
+
+  .declaration {
+    margin-top: 6px; padding: 9px 11px;
+    background: var(--tint); border: 1px solid var(--rule);
+    font-size: 11.5px; line-height: 1.6;
+  }
+
+  .signrow {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 26px;
+  }
+  .signbox { text-align: center; }
+  .signline { border-top: 1px solid var(--rule-strong); padding-top: 5px; margin-top: 40px; font-size: 11px; }
+
+  .receipt {
+    margin-top: 22px; padding-top: 14px;
+    border-top: 2px dashed var(--rule-strong);
+  }
+  .receipt h2 { border: 0; margin-top: 0; }
+  .scissors { float: right; color: var(--faint); font-size: 11px; }
+
+  footer {
+    margin-top: 16px; padding-top: 8px;
+    border-top: 1px solid var(--rule);
+    font-size: 10px; color: var(--faint);
+    display: flex; justify-content: space-between; gap: 14px;
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; font-size: 10.5pt; }
+    .sheet { border: 0; max-width: none; padding: 0; }
+    .receipt { break-before: auto; }
+    tr, .signrow, .declaration { break-inside: avoid; }
+  }
+
+  @page { size: A4; margin: 14mm; }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header>
+    {{/*
+      The masthead names the platform, not a government.
+
+      It read "महाराष्ट्र शासन · महसूल व कृषी विभाग / Government of Maharashtra ·
+      Revenue and Agriculture Department". That is wrong in the way that
+      matters most: a farmer holding this page has no way to tell it from a
+      document the Collector actually issued, and neither would a court. This
+      platform records a claim and assesses it; it does not issue anything on
+      a state's behalf, and a masthead claiming otherwise is a forged official
+      record whatever the intent behind the template.
+
+      The same correction was made to the assessment dossier -- see
+      DefaultStandard in internal/dossier/standard.go, which carries the
+      longer reasoning. This template had been missed, so the receipt a
+      farmer is handed still carried the state's name.
+
+      Where a revenue office genuinely adopts this platform, the masthead is
+      that office's to set, on its own authority. It is not a string this
+      repository ships with.
+    */}}
+    <div class="authority">
+      eSurvey · पीक नुकसान मूल्यांकन प्रणाली
+      <span class="en">Crop Loss Assessment Platform</span>
+    </div>
+    <h1>
+      पीक नुकसान मूल्यांकन अहवाल
+      <span class="en">Crop Loss Assessment Report</span>
+    </h1>
+    <div class="refline">
+      <span>अहवाल क्रमांक <span class="en">Report no.</span> <b>{{.Reference}}</b></span>
+      {{- if .SurveyEventReference}}
+      <span>सर्वेक्षण अधिसूचना <span class="en">Survey event</span> <b>{{.SurveyEventReference}}</b></span>
+      {{- end}}
+      <span>स्थिती <span class="en">Status</span> <b>{{label "state" (printf "%s" .State)}}</b></span>
+    </div>
+  </header>
+
+  {{/* ---- 1. farmer ---------------------------------------------------- */}}
+  <h2>१. शेतकऱ्याची माहिती <span class="en">Farmer details</span></h2>
+  <dl class="grid">
+    <div>
+      <dt>संपूर्ण नाव <span class="en">Full name</span></dt>
+      <dd>{{.FarmerName}}</dd>
+    </div>
+    <div>
+      <dt>शेतकरी ओळख क्रमांक <span class="en">Farmer ID</span></dt>
+      <dd>{{.FarmerID}}</dd>
+    </div>
+    <div>
+      <dt>पत्रव्यवहाराचा पत्ता <span class="en">Correspondence address</span></dt>
+      <dd class="plain">{{or .FarmerAddress "—"}}</dd>
+    </div>
+    <div>
+      <dt>भ्रमणध्वनी <span class="en">Mobile</span> · ई-मेल <span class="en">Email</span></dt>
+      <dd class="plain">{{or .FarmerMobile "—"}} · {{or .FarmerEmail "—"}}</dd>
+    </div>
+  </dl>
+
+  {{/* ---- 2. place ----------------------------------------------------- */}}
+  <h2>२. नुकसानग्रस्त शेताचे ठिकाण <span class="en">Location of the affected land</span></h2>
+  <dl class="grid four">
+    <div>
+      <dt>गाव <span class="en">Village</span></dt>
+      <dd>{{.Place.VillageName}} <span class="faint">{{.Place.VillageCode}}</span></dd>
+    </div>
+    <div>
+      <dt>महसूल मंडळ <span class="en">Revenue circle</span></dt>
+      <dd>{{if .Place.CircleName}}{{.Place.CircleName}}{{else}}<span class="muted">नोंद नाही <span class="en">not mapped</span></span>{{end}}</dd>
+    </div>
+    <div>
+      <dt>तालुका <span class="en">Taluka</span></dt>
+      <dd>{{.Place.SubDistrictName}} <span class="faint">{{.Place.SubDistrictCode}}</span></dd>
+    </div>
+    <div>
+      <dt>जिल्हा <span class="en">District</span></dt>
+      <dd>{{.Place.DistrictName}} <span class="faint">{{.Place.DistrictCode}}</span></dd>
+    </div>
+  </dl>
+
+  {{/* ---- 3. loss ------------------------------------------------------ */}}
+  <h2>३. नुकसानीचा तपशील <span class="en">Details of the loss</span></h2>
+  <dl class="grid four">
+    <div>
+      <dt>हंगाम <span class="en">Season</span></dt>
+      <dd>{{label "season" (printf "%s" .Season)}}</dd>
+    </div>
+    <div>
+      <dt>वर्ष <span class="en">Year</span></dt>
+      <dd>{{.CropYear}}</dd>
+    </div>
+    <div>
+      <dt>नुकसानीचा प्रकार <span class="en">Loss category</span></dt>
+      <dd>{{label "category" (printf "%s" .LossCategory)}}</dd>
+    </div>
+    <div>
+      <dt>नुकसानीचे कारण <span class="en">Cause</span></dt>
+      <dd>{{label "calamity" .CalamityType}}</dd>
+    </div>
+    <div>
+      <dt>घटनेचा दिनांक व वेळ <span class="en">Date and time of the incident</span></dt>
+      <dd>{{datetime .OccurredAt}}</dd>
+    </div>
+    <div>
+      <dt>सूचना दिल्याचा दिनांक <span class="en">Reported on</span></dt>
+      <dd>{{datetime .ReportedAt}}</dd>
+    </div>
+    <div>
+      <dt>सूचना माध्यम <span class="en">Reported through</span></dt>
+      <dd class="plain">{{label "channel" .ReportedChannel}}</dd>
+    </div>
+  </dl>
+
+  {{- if .FiledLate}}
+  <p class="flag">
+    ४८ तासांनंतर प्राप्त सूचना
+    <span class="en">Reported more than 48 hours after the incident.</span>
+    {{if .LateReason}}<br>कारण <span class="en">Reason</span>: {{.LateReason}}{{end}}
+  </p>
+  {{- end}}
+
+  {{/* ---- 4. crops ----------------------------------------------------- */}}
+  <h2>४. नुकसानग्रस्त पिकाची माहिती <span class="en">Affected crops</span></h2>
+  <table>
+    <caption>
+      क्षेत्र हेक्टरमध्ये <span class="en">Areas in hectares</span>
+    </caption>
+    <thead>
+      <tr>
+        <th style="width:5%">अ.क्र.<br><span class="en">Sr.</span></th>
+        <th style="width:16%">सर्व्हे नंबर<br><span class="en">Survey no.</span></th>
+        <th>पिकाचे नाव<br><span class="en">Crop</span></th>
+        <th class="num" style="width:16%">लागवडीखालील क्षेत्र<br><span class="en">Area sown</span></th>
+        <th class="num" style="width:16%">नुकसानग्रस्त क्षेत्र<br><span class="en">Area affected</span></th>
+        <th class="num" style="width:14%">नुकसानीची टक्केवारी<br><span class="en">Damage %</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{- range .Items}}
+      <tr>
+        <td class="num">{{.LineNo}}</td>
+        <td>{{.SurveyNumber}}{{if .SubSurveyNumber}} / {{.SubSurveyNumber}}{{end}}</td>
+        <td>{{.CropName}}</td>
+        <td class="num">{{ha .AreaSownHa}}</td>
+        <td class="num">{{ha .AreaAffectedHa}}</td>
+        <td class="num">{{pct .DamagePercent}}</td>
+      </tr>
+      {{- end}}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3">एकूण <span class="en">Total</span></td>
+        <td class="num">{{ha .TotalSown}}</td>
+        <td class="num">{{ha .TotalAffected}}</td>
+        <td class="num">{{pct .WeightedPercent}}</td>
+      </tr>
+    </tfoot>
+  </table>
+  <p class="faint" style="margin-top:5px">
+    एकूण टक्केवारी ही क्षेत्रानुसार भारित सरासरी आहे.
+    <span class="en">The total percentage is weighted by affected area, not a
+    mean of the line percentages.</span>
+  </p>
+
+  {{/* ---- 5. declaration ----------------------------------------------- */}}
+  <h2>५. शेतकऱ्याचे घोषणापत्र <span class="en">Farmer's declaration</span></h2>
+  <div class="declaration">
+    पाहणी पूर्ण होण्यापूर्वी मी माझे नुकसानग्रस्त पीक, त्याचा कोणताही भाग अथवा
+    त्याची स्थिती बदलणार नाही. कृपया माझ्या शेताची प्रत्यक्ष पाहणी करण्यात यावी.
+    जमिनीच्या मालकीचा पुरावा मी सादर करेन.
+    <div class="en" style="margin-top:5px">
+      I will not alter my damaged crop, any part of it, or its condition before
+      the inspection is complete. Please carry out a physical inspection of my
+      field. I will produce proof of title to the land.
+    </div>
+    <div style="margin-top:7px">
+      सादर करावयाची कागदपत्रे <span class="en">Documents to be produced</span>:
+      {{joinDocs .DocumentsPromised}}
+    </div>
+  </div>
+
+  <div class="signrow">
+    <div class="signbox">
+      <div class="signline">
+        शेतकऱ्याची {{if .FarmerSignatureKind}}{{label "signature" .FarmerSignatureKind}}{{else}}सही / अंगठा <span class="en">signature / thumb</span>{{end}}<br>
+        <span class="faint">{{if .FarmerSignedAt}}{{datetime .FarmerSignedAt}}{{else}}—{{end}}</span>
+      </div>
+    </div>
+    <div class="signbox">
+      <div class="signline">
+        सूचना नोंदविणारा अधिकारी <span class="en">Recording officer</span><br>
+        <span class="faint">सही व शिक्का <span class="en">signature and seal</span></span>
+      </div>
+    </div>
+  </div>
+
+  {{/* ---- receipt ------------------------------------------------------ */}}
+  <section class="receipt">
+    <span class="scissors">✂ — — — — — — — — — — — — — — — —</span>
+    <h2>पोहोच पावती <span class="en">Acknowledgement receipt</span></h2>
+    <p style="margin:4px 0 10px">
+      श्री./श्रीमती <b>{{.FarmerName}}</b>,
+      गाव <b>{{.Place.VillageName}}</b>,
+      ता. <b>{{.Place.SubDistrictName}}</b>,
+      जि. <b>{{.Place.DistrictName}}</b>
+      यांच्याकडून <b>{{datetime .OccurredAt}}</b> रोजी झालेल्या
+      <b>{{label "calamity" .CalamityType}}</b> मुळे पीक नुकसानीची सूचना
+      प्राप्त झाली आहे. प्रत्यक्ष पाहणी करून नुकसानीचे मूल्यांकन करण्यात येईल.
+      <span class="en" style="display:block;margin-top:5px">
+        A crop loss report has been received from the above, for loss caused by
+        the calamity named, on the date shown. The loss will be assessed after a
+        physical inspection of the field.
+      </span>
+    </p>
+    <dl class="grid three">
+      <div>
+        <dt>अहवाल क्रमांक <span class="en">Report no.</span></dt>
+        <dd>{{.Reference}}</dd>
+      </div>
+      <div>
+        <dt>पोहोच दिल्याचा दिनांक <span class="en">Acknowledged on</span></dt>
+        <dd>{{dateptr .AcknowledgedAt}}</dd>
+      </div>
+      <div>
+        <dt>स्वीकारणारा अधिकारी <span class="en">Received by</span></dt>
+        <dd>{{or .AcknowledgedByName "—"}}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <footer>
+    <span>
+      हा अहवाल केवळ पीक नुकसानीच्या नोंदीसाठी व मूल्यांकनासाठी आहे.
+      <span class="en">This report records and assesses crop loss. It confers
+      no entitlement in itself.</span>
+    </span>
+    <span style="white-space:nowrap">छापल्याचा दिनांक {{datetime .PrintedAt}}</span>
+  </footer>
+
+</div>
+</body>
+</html>
