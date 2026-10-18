@@ -1,0 +1,672 @@
+# eSurvey platform, whole stack.
+#
+#   cp .env.example .env      # then fill in the secrets it names
+#   docker compose up --build
+#
+# Postgres and Redis are published on the loopback interface only, and on
+# non-standard ports. Two reasons, and both are load-bearing.
+#
+# Loopback: they hold the officer roll and every live session, and a database
+# reachable from the office LAN because a compose file said "5432:5432" is how
+# that ends up somewhere it should not be.
+#
+# Non-standard ports: a developer machine usually already has something on
+# 5432 and 6379, and a stack that fights for them either fails to start or --
+# far worse -- quietly attaches to the wrong database. Change the bind address
+# deliberately or not at all.
+
+name: esurvey
+
+# Container logs are capped, because Docker does not cap them.
+#
+# The json-file driver grows without limit, and this stack is chatty: six
+# services with restart: unless-stopped, a healthcheck on most of them every
+# five to ten seconds, and a readiness probe the phone polls. None of that is
+# interesting and all of it is written down for ever.
+#
+# On WSL2 it is worse than untidy. Every byte lands inside docker_data.vhdx,
+# a file that grows to fit and never shrinks back, so unbounded logs are a
+# slow leak straight into the Windows system drive -- no ceiling, no warning,
+# and a full C: is how it announces itself.
+#
+# 10 MB across 3 files per service is a comfortable week of ordinary traffic
+# and still long enough to read back through an incident.
+x-logging: &container-logs
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    logging: *container-logs
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-esurvey}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-esurvey}
+      # Data checksums catch silent corruption at read time instead of at
+      # restore time, which is when it is discovered otherwise.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command:
+      - postgres
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=256MB
+      # Log anything slower than a second. The assessment path is dominated by
+      # network waits, so a slow query here is a real one.
+      - -c
+      - log_min_duration_statement=1000
+      # Streaming replication to postgres-replica. The slot keeps WAL the
+      # replica has not received; this caps how much, so a replica stopped
+      # for days is invalidated and re-cloned rather than filling this disk.
+      - -c
+      - max_slot_wal_keep_size=2048
+      # The image's client authentication plus replication from the compose
+      # network. See deploy/postgres/pg_hba.conf.
+      - -c
+      - hba_file=/etc/esurvey/pg_hba.conf
+      # Deliberately not log_connections/log_disconnections. The healthcheck
+      # opens and closes a connection every five seconds, so those two
+      # settings produce around thirty thousand lines a day recording nothing
+      # anybody is looking for -- and they crowd out the slow queries above,
+      # which are the reason this log gets read at all.
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/pg_hba.conf:/etc/esurvey/pg_hba.conf:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    healthcheck:
+      # -h 127.0.0.1 forces a TCP check: the unix socket answers before the
+      # server is accepting network connections, which is what dependents need.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-esurvey} -d ${POSTGRES_DB:-esurvey}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  # A streaming read replica of postgres, for the reads that tolerate a few
+  # seconds' staleness. The API watches its lag and reads from the primary
+  # whenever it is behind or down, so nothing waits on it to start. In
+  # production this is the managed database's own replica; here it is the
+  # same shape, so the routing is exercised before it matters.
+  postgres-replica:
+    logging: *container-logs
+    image: postgis/postgis:17-3.5
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["sh", "/esurvey/replica-entrypoint.sh"]
+    command:
+      - postgres
+      - -c
+      - max_connections=100
+      - -c
+      - shared_buffers=128MB
+      # Queries on the replica are not cancelled by vacuum on the primary
+      # removing rows they still need; the cost is some bloat on the primary
+      # while a long dashboard query runs.
+      - -c
+      - hot_standby_feedback=on
+      - -c
+      - max_standby_streaming_delay=30s
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-esurvey}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      PRIMARY_HOST: postgres
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+      - ./deploy/postgres/replica-entrypoint.sh:/esurvey/replica-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-esurvey}"]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+
+  # PgBouncer, in transaction mode, in front of the primary and the replica.
+  # See deploy/pgbouncer/entrypoint.sh.
+  pgbouncer:
+    logging: *container-logs
+    image: edoburu/pgbouncer@sha256:4c1ca296ef525f108f5d3552cc337c0c09587cf8dae7f0067fd93349e47dc1cd
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["sh", "/esurvey/pgbouncer-entrypoint.sh"]
+    ports:
+      - "127.0.0.1:${PGBOUNCER_PORT:-56432}:6432"
+    environment:
+      DB_USER: ${POSTGRES_USER:-esurvey}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      DB_NAME: ${POSTGRES_DB:-esurvey}
+      PRIMARY_HOST: postgres
+      REPLICA_HOST: postgres-replica
+    volumes:
+      - ./deploy/pgbouncer/entrypoint.sh:/esurvey/pgbouncer-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6432"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    logging: *container-logs
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}
+      # Refresh tokens and one-time codes are recoverable by signing in again,
+      # so full durability is not worth the write cost -- but losing every
+      # session on a restart is a bad morning for a district office, and
+      # appendonly with a one-second fsync costs almost nothing to avoid it.
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      # Bounded, and refusing rather than evicting when full.
+      #
+      # This was volatile-ttl, which evicts what expires soonest -- and what
+      # expires soonest here is the one-time code a farmer is about to type and
+      # the rate-limit counters. At scale that meant sign-in failing with
+      # "wrong code" and no error anywhere (docs/SYNC_SCALE_REVIEW.md, C3).
+      # Nothing stored here is a cache: sessions, codes and throttles are all
+      # state. noeviction makes a full Redis an explicit error the API retries
+      # and logs, and the API warns at 75% so it is raised before then.
+      #
+      # Sizing: roughly 400 B per live session plus 180 B per refresh in the
+      # last 72 hours. A farmer refreshes at most every 6 hours, so 5 lakh
+      # active farmers need about 1.5 GB at the peak.
+      - --maxmemory
+      - ${REDIS_MAXMEMORY:-1gb}
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-56379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    security_opt:
+      - no-new-privileges:true
+
+  ai:
+    logging: *container-logs
+    build:
+      context: ./ai-services
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # The Gemini credential stays in ai-services/.env, which is where the
+    # service already reads it from when run outside a container. One file, one
+    # place to rotate it, and no second copy of a live key in the repository
+    # root. Anything under environment: below would override this file, so the
+    # credential is deliberately not repeated there.
+    env_file:
+      - ./ai-services/.env
+    environment:
+      ESURVEY_AI_MODEL: ${ESURVEY_AI_MODEL:-gemini-3.1-pro-preview}
+      ESURVEY_AI_HOST: 0.0.0.0
+      ESURVEY_AI_PORT: "8100"
+
+      # The token this service demands of its caller. Empty leaves the check
+      # off, which is what a laptop runs with; the API refuses to start in a
+      # hardened environment without one. See ai-services callers.py.
+      ESURVEY_AI_CALLER_TOKEN: ${ESURVEY_INTERNAL_TOKEN:-}
+    ports:
+      - "127.0.0.1:${AI_PORT:-8100}:8100"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  sar:
+    logging: *container-logs
+    build:
+      context: ./satellite-intelligence
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      ESURVEY_SAR_HOST: 0.0.0.0
+      ESURVEY_SAR_PORT: "8200"
+
+      # As above: Earth Engine work is billable, and until now anything able
+      # to reach this service could ask for it.
+      ESURVEY_SAR_CALLER_TOKEN: ${ESURVEY_INTERNAL_TOKEN:-}
+
+      # The GCP project registered for Earth Engine. Empty leaves the module
+      # off: submit answers 404, which the platform reads as an unavailable
+      # evidence source and assesses without radar, saying so.
+      ESURVEY_SAR_EE_PROJECT: ${ESURVEY_SAR_EE_PROJECT:-}
+      # Shared task state, so this service can run as more than one replica:
+      # a poller reaching a different replica still finds its task, and a
+      # restart does not lose the Earth Engine work in flight.
+      #
+      # Concurrency multiplies with replicas -- each admits
+      # ESURVEY_SAR_MAX_CONCURRENT -- so keep replicas x that number inside
+      # what the Earth Engine project actually allows.
+      ESURVEY_SAR_REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+
+      # The project Earth Engine bills the request to.
+      #
+      # A user credential carries no quota project of its own, and the Earth
+      # Engine API refuses without one -- with a 403 that talks about
+      # Application Default Credentials and reads like an authentication
+      # failure, which is the wrong place to go looking. Setting it here means
+      # a deployment works whether or not whoever ran the login remembered
+      # `gcloud auth application-default set-quota-project`.
+      GOOGLE_CLOUD_QUOTA_PROJECT: ${ESURVEY_SAR_EE_PROJECT:-}
+
+      # Plausible backscatter without Earth Engine, for developing the
+      # platform's side of the contract. Every result is labelled SYNTHETIC
+      # and the platform surfaces it -- a generated reading that reached an
+      # officer as an observation would be a fabricated finding on a
+      # compensation record.
+      ESURVEY_SAR_SYNTHETIC: ${ESURVEY_SAR_SYNTHETIC:-0}
+
+      # Earth Engine limits concurrency per project, and a district-wide event
+      # submits hundreds of parcels within minutes.
+      ESURVEY_SAR_MAX_CONCURRENT: ${ESURVEY_SAR_MAX_CONCURRENT:-4}
+      ESURVEY_SAR_MAX_QUEUED: ${ESURVEY_SAR_MAX_QUEUED:-200}
+    ports:
+      - "127.0.0.1:${SAR_PORT:-8200}:8200"
+    volumes:
+      # Application Default Credentials, read-only. Deliberately ADC and not a
+      # service-account key, the same as the evidence bucket.
+      - ${GOOGLE_ADC_FILE:-/dev/null}:/var/run/gcp/adc.json:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  # OpenCV behind an HTTP API, for measuring the farmer's survey video.
+  #
+  # The heaviest of the three evidence signals in the specification: stem
+  # lodging angle, panicle submersion and foliar necrosis, weighted 0.45,
+  # 0.35 and 0.20 against each other. A separate service because the API
+  # image is distroless and static, and because this decodes video with a
+  # native library.
+  #
+  # The platform assesses without it rather than failing: a 404 from here is
+  # read as an absent evidence source and said so on the record.
+  vision:
+    logging: *container-logs
+    build:
+      context: ./ground-vision
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      ESURVEY_VISION_HOST: 0.0.0.0
+      ESURVEY_VISION_PORT: "8300"
+
+      # Decoding attacker-controlled video with a native library is not a
+      # thing to leave open on a network.
+      ESURVEY_VISION_CALLER_TOKEN: ${ESURVEY_INTERNAL_TOKEN:-}
+
+      # The only implementation today is a classical baseline: colour
+      # thresholds and a gradient orientation, not the trained segmentation
+      # the specification asks for. Off leaves the module absent, which the
+      # platform reads as an unavailable evidence source and assesses without.
+      #
+      # Even switched on, the platform refuses the measurement outside
+      # development, and the baseline caps its own quality below the
+      # specification's "good video" branch so it can never claim the weight a
+      # trained model would earn.
+      ESURVEY_VISION_BASELINE: ${ESURVEY_VISION_BASELINE:-0}
+
+      # The model path, which is what production uses. This service decodes
+      # the walk and samples keyframes; the assessment service reads them,
+      # because that is where the model credential lives and there should be
+      # one place to rotate it. Empty leaves only the baseline above, and with
+      # both off the platform reports the ground signal absent.
+      ESURVEY_VISION_AGENT_URL: ${ESURVEY_VISION_AGENT_URL:-http://ai:8100}
+      ESURVEY_VISION_AGENT_TOKEN: ${ESURVEY_INTERNAL_TOKEN:-}
+      ESURVEY_VISION_AGENT_TIMEOUT: ${ESURVEY_VISION_AGENT_TIMEOUT:-180}
+    depends_on:
+      # Started, not healthy: a clip that arrives while the agent is still
+      # coming up is answered as unmeasured, which the platform already
+      # handles as an absent evidence source.
+      ai:
+        condition: service_started
+    ports:
+      - "127.0.0.1:${VISION_PORT:-8300}:8300"
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          # OpenCV decoding a minute of 1080p holds several frames at once.
+          memory: 1g
+
+  # Chromium behind an HTTP API, for turning the assessment report into a PDF.
+  #
+  # A separate service because the API image is distroless and static, and
+  # because Devanagari needs real text shaping: matras that are stored after
+  # their consonant and drawn before it, conjuncts formed from clusters, the
+  # shirorekha across the result. No Go PDF library does that, and a report
+  # whose Marathi half is reordered into different words is worse than one
+  # that was never converted.
+  #
+  # Nothing depends on it. A report is complete as HTML and prints from any
+  # browser, so the API falls back rather than failing when this is down.
+  pdf:
+    logging: *container-logs
+    build:
+      context: ./pdf-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --api-port=3000
+      # It only ever receives HTML this system generated, so every remote
+      # scheme is refused: a converted document cannot be made to reach out
+      # of the network on somebody else's behalf.
+      #
+      # Schemes rather than ".*" -- the deny list also covers the file: URL
+      # Chromium uses to open the document it was handed, so a blanket rule
+      # refuses the conversion itself. The default rule already confines
+      # file: access to the converter's own tmp directory.
+      - --chromium-deny-list=^(https?|ftp|ws|wss)://.*
+      - --chromium-disable-javascript=true
+      - --api-timeout=120s
+    ports:
+      - "127.0.0.1:${PDF_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  api:
+    logging: *container-logs
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Started, not healthy: the console, the registry and every past
+      # assessment stay usable while the agent is down, and only new
+      # assessments fail. Blocking startup on it would turn a degraded
+      # feature into an outage.
+      ai:
+        condition: service_started
+    environment:
+      # development by default: this stack has no SMS gateway, and the
+      # configuration loader refuses to start a hardened environment while
+      # one-time codes are being written to a log. Set it to production once a
+      # real delivery channel is configured -- the refusal is the guardrail
+      # working, not an obstacle to route around.
+      ESURVEY_ENV: ${ESURVEY_ENV:-development}
+      ESURVEY_ADDR: ":8090"
+
+      # Requests and workers through PgBouncer; staleness-tolerant reads
+      # through PgBouncer to the replica; migrations and the audit chain
+      # straight to the primary. See internal/platform/db/pools.go.
+      ESURVEY_DATABASE_URL: postgres://${POSTGRES_USER:-esurvey}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-esurvey}?sslmode=disable
+      ESURVEY_DATABASE_READ_URL: postgres://${POSTGRES_USER:-esurvey}:${POSTGRES_PASSWORD}@pgbouncer:6432/${POSTGRES_DB:-esurvey}_read?sslmode=disable
+      ESURVEY_DATABASE_DIRECT_URL: postgres://${POSTGRES_USER:-esurvey}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-esurvey}?sslmode=disable
+      ESURVEY_DATABASE_POOLED: "true"
+      ESURVEY_REDIS_ADDR: redis:6379
+      ESURVEY_REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+      ESURVEY_JWT_SEED: ${ESURVEY_JWT_SEED:?set ESURVEY_JWT_SEED in .env}
+
+      # The seed the audit log's hash chain starts from.
+
+      #
+
+      # Required outside development, and it was never passed through here --
+
+      # so a hardened deployment refused to start however correctly the
+
+      # variable was set in .env, and the message pointed at the operator
+
+      # rather than at this file.
+
+      ESURVEY_AUDIT_CHAIN_SEED: ${ESURVEY_AUDIT_CHAIN_SEED:-}
+      ESURVEY_JWT_PREVIOUS_SEEDS: ${ESURVEY_JWT_PREVIOUS_SEEDS:-}
+
+      ESURVEY_CORS_ORIGINS: ${ESURVEY_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      # Zero means X-Forwarded-For is ignored entirely. Raise it only when a
+      # reverse proxy you run is in front, and set it to how many.
+      ESURVEY_TRUSTED_PROXY_HOPS: ${ESURVEY_TRUSTED_PROXY_HOPS:-0}
+
+      ESURVEY_EVIDENCE_DIR: /app/evidence
+      # Empty means the local volume above. Set it to send evidence to Cloud
+      # Storage instead -- and note there is no fallback: if the bucket is
+      # named and unreachable the server refuses to start, because writing
+      # evidence somewhere other than where an operator believes it is going
+      # is worse than not starting.
+      ESURVEY_EVIDENCE_BUCKET: ${ESURVEY_EVIDENCE_BUCKET:-}
+      ESURVEY_EVIDENCE_PREFIX: ${ESURVEY_EVIDENCE_PREFIX:-}
+
+      # Where the Cloud Storage client looks for Application Default
+      # Credentials inside the container. The path is always set; the file is
+      # only mounted when GOOGLE_ADC_FILE points at one, so a deployment
+      # without it is unaffected.
+      #
+      # Deliberately ADC and not a service-account key. A downloaded key to
+      # the evidence bucket would be a long-lived, silently copyable
+      # credential to every farmer photograph in the system.
+      GOOGLE_APPLICATION_CREDENTIALS: /var/run/gcp/adc.json
+
+      SATELLITE_URL: ${SATELLITE_URL:-http://34.93.99.56:8080}
+      # The radar module. Where it is not set the platform's own client is
+      # never called, and radar is reported as an absent evidence source.
+      SAR_SERVICE_URL: ${SAR_SERVICE_URL:-http://sar:8200}
+      VISION_SERVICE_URL: ${VISION_SERVICE_URL:-http://vision:8300}
+      SATELLITE_API_KEY: ${SATELLITE_API_KEY:?set SATELLITE_API_KEY in .env}
+
+      # What this API presents to the two analysis services above. One value,
+      # so there is one thing to rotate.
+      ESURVEY_INTERNAL_TOKEN: ${ESURVEY_INTERNAL_TOKEN:-}
+      AI_SERVICE_URL: http://ai:8100
+
+      # The HTML-to-PDF converter, for the reports and for an officer asking the
+      # assistant to export one. Named here as well as defaulted in the binary,
+      # because this file is what an operator reads to find out what the api talks
+      # to -- and a service that only appears as a default in Go is a service
+      # nobody knows is there until it is missing.
+      PDF_SERVICE_URL: http://pdf:3000
+
+      # Spoken guidance, off unless a deployment sets the relay address.
+      #
+      # The address is this service's own public one, not the AI service's: a session
+      # is proxied through here so the process holding the model credential is never
+      # published. Empty leaves the feature off, and everything needed to file a claim
+      # works without it.
+      ESURVEY_LIVE_RELAY_URL: ${ESURVEY_LIVE_RELAY_URL:-}
+      ESURVEY_LIVE_MODEL: ${ESURVEY_LIVE_MODEL:-gemini-3.8-live}
+
+      # Only used when the account roll is empty; remove them from .env once
+      # the first administrator has set their own password.
+      ESURVEY_BOOTSTRAP_ADMIN_USERNAME: ${ESURVEY_BOOTSTRAP_ADMIN_USERNAME:-}
+      ESURVEY_BOOTSTRAP_ADMIN_PASSWORD: ${ESURVEY_BOOTSTRAP_ADMIN_PASSWORD:-}
+
+      # Codes go to the log until a gateway is configured. The configuration
+      # loader refuses that in a hardened environment, which is why the
+      # default compose environment is not one.
+      ESURVEY_OTP_SENDER: ${ESURVEY_OTP_SENDER:-log}
+
+      # The SMS gateway that reaches farmers.
+      #
+      # Empty leaves it off: notifications queue, the backlog is reported on
+      # /readyz, and nobody is told anything -- which is where this platform
+      # has been since the first report was filed.
+      #
+      # Turning it on needs three things, and the loader refuses a partial
+      # set rather than failing at the first farmer:
+      #
+      #   ESURVEY_SMS_PROVIDER    msg91, enterprise, or generic
+      #   ESURVEY_SMS_SENDER_ID   the registered six-character header
+      #   ESURVEY_SMS_TEMPLATES   event=dlt_template_id, comma separated
+      #
+      # enterprise and generic also need ESURVEY_SMS_URL. enterprise (the
+      # /fe/api/v1/message gateway) authenticates with a pair, so it needs
+      # ESURVEY_SMS_USERNAME as well, with the account password in
+      # ESURVEY_SMS_AUTH_KEY.
+      #
+      # The templates are not optional. India rejects any message with no
+      # registered DLT template and the aggregator answers 200 either way, so
+      # a gateway without them delivers nothing and reports success.
+      ESURVEY_SMS_PROVIDER: ${ESURVEY_SMS_PROVIDER:-}
+      ESURVEY_SMS_URL: ${ESURVEY_SMS_URL:-}
+      ESURVEY_SMS_USERNAME: ${ESURVEY_SMS_USERNAME:-}
+      ESURVEY_SMS_AUTH_KEY: ${ESURVEY_SMS_AUTH_KEY:-}
+      ESURVEY_SMS_SENDER_ID: ${ESURVEY_SMS_SENDER_ID:-}
+      ESURVEY_SMS_TEMPLATES: ${ESURVEY_SMS_TEMPLATES:-}
+
+      # The approved template's exact wording, and the registered principal
+      # entity that authorises it.
+      #
+      # Both were read by the configuration and neither was passed in here, so
+      # the service fell back to its built-in Marathi default and sent no
+      # entity id at all. The aggregator accepted every message and returned a
+      # transaction id; the operator compared the text against the registered
+      # template, matched nothing, and dropped all of them. Nothing in the
+      # logs said so, because from the platform's side each one was sent.
+      #
+      # A variable the configuration reads and the compose file does not pass
+      # is not a default -- it is a silent one, and this is what that costs.
+      ESURVEY_SMS_OTP_TEXT: ${ESURVEY_SMS_OTP_TEXT:-}
+      ESURVEY_SMS_PEID: ${ESURVEY_SMS_PEID:-}
+      ESURVEY_SMS_WORKERS: ${ESURVEY_SMS_WORKERS:-}
+
+      # How a one-time code behaves. Same omission, smaller blast radius: the
+      # built-in defaults are sane, so a deployment that tuned these in .env
+      # was quietly ignored rather than broken.
+      ESURVEY_OTP_TTL: ${ESURVEY_OTP_TTL:-}
+      ESURVEY_OTP_LENGTH: ${ESURVEY_OTP_LENGTH:-}
+      ESURVEY_OTP_MAX_ATTEMPTS: ${ESURVEY_OTP_MAX_ATTEMPTS:-}
+      ESURVEY_OTP_RESEND_COOLDOWN: ${ESURVEY_OTP_RESEND_COOLDOWN:-}
+      ESURVEY_OTP_DAILY_CAP: ${ESURVEY_OTP_DAILY_CAP:-}
+      # A rehearsal before a district-wide event, where the failure everybody
+      # fears is a test run that actually messages four thousand farmers.
+      ESURVEY_SMS_DRY_RUN: ${ESURVEY_SMS_DRY_RUN:-false}
+
+      # The mail relay that carries officer invitations and password resets.
+      #
+      # Empty leaves it off: invitations queue, and the console shows an
+      # administrator the link to pass on by hand rather than promising an
+      # email that is sitting in a table.
+      #
+      # Port 465 is implicit TLS and takes ESURVEY_SMTP_STARTTLS=false; 587 is
+      # plaintext upgraded by STARTTLS and takes true. Getting that pair wrong
+      # is the usual reason a relay refuses to authenticate, and the client
+      # refuses to send the password over an unencrypted link either way.
+      ESURVEY_SMTP_HOST: ${ESURVEY_SMTP_HOST:-}
+      ESURVEY_SMTP_PORT: ${ESURVEY_SMTP_PORT:-587}
+      ESURVEY_SMTP_USERNAME: ${ESURVEY_SMTP_USERNAME:-}
+      ESURVEY_SMTP_PASSWORD: ${ESURVEY_SMTP_PASSWORD:-}
+      ESURVEY_SMTP_FROM: ${ESURVEY_SMTP_FROM:-}
+      ESURVEY_SMTP_STARTTLS: ${ESURVEY_SMTP_STARTTLS:-true}
+
+      # Where an officer's browser reaches the console. Invitation links are
+      # built against it, so a wrong value produces mail whose only content is
+      # a link that goes nowhere.
+      ESURVEY_CONSOLE_BASE_URL: ${ESURVEY_CONSOLE_BASE_URL:-http://127.0.0.1:3000}
+    ports:
+      # Loopback by default, like Postgres and Redis above.
+      #
+      # This service speaks plaintext HTTP unless a certificate is configured,
+      # and it hands out bearer tokens and returns identified farmers' land and
+      # photographs. Published on 0.0.0.0 -- which is what a bare "8090:8090"
+      # means -- every session on the host's network belongs to whoever is
+      # listening on it. On a village Wi-Fi that is not a hypothetical.
+      #
+      # Testing on a real handset needs it reachable, so the bind address is a
+      # variable rather than a wall:
+      #
+      #     API_BIND=0.0.0.0 docker compose up -d api
+      #
+      # That is a decision somebody takes for an afternoon, which is the point.
+      # Before it stays that way, put TLS in front -- see ESURVEY_TLS_CERT_FILE
+      # and ESURVEY_TRUSTED_PROXY_HOPS, one of which a hardened environment now
+      # requires.
+      - "${API_BIND:-127.0.0.1}:${API_PORT:-8090}:8090"
+    volumes:
+      # Read-only over the copy baked into the image, so editing a mock does
+      # not need a rebuild -- and nothing in the container can write to it.
+      - ./mock_files:/app/mock_files:ro
+      - ./reference_data:/app/reference_data:ro
+      # Farmer-captured photographs. A named volume rather than a bind mount:
+      # this is evidence attached to a named person, and it should not sit in
+      # a working directory that gets copied around.
+      - evidence:/app/evidence
+      # Application Default Credentials, read-only, when a path is given.
+      #
+      # Defaults to /dev/null so the mount is always valid and the file is
+      # simply absent -- Compose has no conditional volumes, and an unset
+      # source would fail to start every deployment that does not use a
+      # bucket.
+      #
+      # On a developer machine:
+      #   gcloud auth application-default login
+      #   GOOGLE_ADC_FILE=$HOME/.config/gcloud/application_default_credentials.json
+      #
+      # On GKE or Cloud Run this stays unset: the workload's own identity is
+      # picked up from the metadata server and needs no file.
+      - ${GOOGLE_ADC_FILE:-/dev/null}:/var/run/gcp/adc.json:ro
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+volumes:
+  postgres-data:
+  postgres-replica-data:
+  redis-data:
+  evidence:

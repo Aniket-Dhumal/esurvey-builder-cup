@@ -1,0 +1,67 @@
+# Secrets. .env holds the database password, the Redis password and the token
+# signing seed; committing it once means rotating all three.
+.env
+*.env
+!.env.example
+
+# Go
+/backend/esurvey-server
+/backend/*.exe
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# Node / Next.js
+node_modules/
+/web-platform/.next/
+/web-platform/out/
+/web-platform/next-env.d.ts
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Farmer-captured evidence. Photographs of identified people's land.
+/evidence/*
+!/evidence/.keep
+
+# Build and tool caches
+/web-platform/.turbo/
+/web-platform/coverage/
+/backend/coverage.out
+*.log
+
+# Local scratch
+/tmp/
+
+# Local verification artefacts: a headless browser and the screenshots taken
+# with it. Neither belongs in the repository -- the browser is 150MB and the
+# screenshots are a moment in time, not a fixture.
+.pw-browsers/
+.shots/
+.scratch/
+
+# Database dumps and evidence archives. They hold real farmer records, Aadhaar
+# hashes and photographs, and a repository is the one place a backup must never
+# be: it is copied to every clone and survives every deletion.
+backups/
+
+# Registry records of real, identified farmers, placed here for a trial.
+#
+# The directory itself is tracked, because the reference parcel in it is what
+# the tests and the development stack run on. These are not that: they are
+# names, mobile numbers, land records and boundaries of living people, and
+# they belong on the machine running the trial rather than in a repository
+# that will be cloned, pushed and kept.
+mock_files/trial-*.json
+
+# Built APKs for a field share. Binaries, rebuilt from source on demand, and
+# the arm64 one alone is 34 MB -- a repository is not a download server.
+/dist/

@@ -1,0 +1,257 @@
+# What must hold before anything merges.
+#
+# Each part is checked independently because they fail independently: a Go
+# change cannot break the Python guardrails, and neither can break a Next
+# build. Running them as separate jobs means a red tick names the thing that
+# is wrong instead of the whole repository.
+#
+# The farmer app and the satellite service were missing from here for longer
+# than they should have been -- 174 tests between them that ran only when
+# somebody remembered to. Neither needs a device: the Flutter suite runs on
+# the Dart VM against sqflite's FFI implementation.
+#
+# The database jobs use a real PostGIS container rather than a mock. Most of
+# what this platform gets wrong is SQL -- a scope predicate, an enum that
+# drifted from its Go constant, a count computed against different rows than
+# the page it describes -- and none of that is visible against a fake.
+
+name: CI
+
+on:
+  # Advisories are published continuously; a workflow that only runs on push
+  # finds out about them whenever somebody next happens to touch the code.
+  schedule:
+    - cron: "17 4 * * *"
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push makes the previous run's answer irrelevant.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Go
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: esurvey
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: esurvey_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U esurvey"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      # Formatting is checked rather than applied. A CI job that rewrites the
+      # tree produces a green tick for code nobody has seen.
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not gofmt'd:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
+      # Two databases: the migration suite drops the public schema, so it
+      # must never share one with the suites that read it.
+      - name: Create the throwaway migration database
+        run: |
+          PGPASSWORD=ci createdb -h localhost -U esurvey esurvey_test_migrations
+
+      - name: Tests
+        run: go test -race ./...
+        env:
+          ESURVEY_TEST_DATABASE_URL: postgres://esurvey:ci@localhost:5432/esurvey_test?sslmode=disable
+          ESURVEY_TEST_MIGRATIONS_URL: postgres://esurvey:ci@localhost:5432/esurvey_test_migrations?sslmode=disable
+
+
+  ai:
+    name: Python
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-services
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: ai-services/uv.lock
+
+      - name: Install
+        run: uv sync --frozen --extra dev
+
+      - name: Lint
+        run: uv run ruff check src tests
+
+      # No credential is configured here, which is the point: the panel must
+      # answer without one. Every degradation test runs against the same
+      # deterministic fallback a real deployment falls back to.
+      - name: Tests
+        run: uv run pytest -q
+
+  mobile:
+    name: Farmer app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile-app
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.10
+          cache: true
+
+      - name: Install
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      # The suite runs on the Dart VM with sqflite's FFI implementation, so it
+      # needs no device and no emulator. What it covers is the part that
+      # decides whether a farmer's claim survives: the offline queue, the
+      # session that outlives no signal, and the arithmetic behind the
+      # capture stages.
+      - name: Tests
+        run: flutter test
+
+  satellite:
+    name: Satellite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: satellite-intelligence
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: satellite-intelligence/uv.lock
+
+      - name: Install
+        run: uv sync --frozen --extra dev
+
+      - name: Lint
+        run: uv run ruff check src tests
+
+      - name: Tests
+        run: uv run pytest -q
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-platform
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-platform/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+        # There are known items in the offline farmer flow, where the effects
+        # genuinely subscribe to device and network state. Reported, not
+        # blocking, until those are worked through properly -- a lint gate
+        # that always fails is a lint gate everyone learns to ignore.
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build
+
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # This repository holds farmer identity and land records. A committed
+      # credential is the one mistake that cannot be undone by a revert.
+      - name: Scan history
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  vulnerabilities:
+    name: Known vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+
+      # The check that would have caught eight reachable standard-library
+      # vulnerabilities months earlier than a person did.
+      #
+      # govulncheck reports only what this code can actually reach, so it does
+      # not cry wolf about advisories buried in packages nothing calls -- which
+      # is what makes failing the build on it reasonable rather than something
+      # people learn to override.
+      #
+      # It reads the toolchain from go.mod, so a vulnerable Go release is
+      # itself a failure here: that is exactly how the eight were found, and
+      # pinning the toolchain is how they were fixed.
+      - name: govulncheck
+        working-directory: backend
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+
+      # Advisories land between pushes, so a repository that only checks on
+      # commit finds out when somebody happens to touch it. Daily is the
+      # cadence that matters for a dependency nobody is editing.
+      - name: Note
+        if: failure()
+        run: |
+          echo "::warning::A dependency this code reaches has a known"\
+               "vulnerability. Raise the pinned Go toolchain in backend/go.mod,"\
+               "or update the module govulncheck names."

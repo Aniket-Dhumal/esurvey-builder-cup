@@ -1,0 +1,17 @@
+# Keep the build context small and free of anything secret.
+.git
+.env
+*.env
+!.env.example
+node_modules
+web-platform/
+mobile-app/
+docs/
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.next
+**/out
+**/.pytest_cache
+**/.ruff_cache
+scratchpad/

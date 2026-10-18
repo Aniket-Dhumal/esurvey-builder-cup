@@ -1,0 +1,22 @@
+# Normalise to LF in the repository regardless of the checkout platform.
+# Development happens on Windows; the containers that run this are Linux, and
+# a shell script or SQL migration that reaches them with CRLF fails in ways
+# that read as a logic bug.
+* text=auto eol=lf
+
+# Never touched: byte-for-byte or not at all.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.pdf binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# Generated. Collapsed in diffs so a lockfile churn does not bury a real change.
+package-lock.json linguist-generated=true -diff
+uv.lock           linguist-generated=true -diff
+
+# Reference data is data, not source. Large, and diffing it is never useful.
+reference_data/*.csv -diff

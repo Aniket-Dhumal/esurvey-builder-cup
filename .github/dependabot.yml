@@ -1,0 +1,64 @@
+# Keeping dependencies current, because that is what actually fixes them.
+#
+# A security review finds what is vulnerable on the day it runs. This finds it
+# every week without anybody remembering to look, which over a year is the
+# difference between a platform that is patched and one that was audited once.
+#
+# The eight standard-library vulnerabilities this repository carried were all
+# fixed by raising a single pinned version. Nobody had raised it because
+# nothing asked them to.
+version: 2
+
+updates:
+  # The API. Its dependency graph includes the Go toolchain itself, which is
+  # where every one of those eight lived.
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # One pull request for the routine bumps, so the queue stays readable and
+      # a security update is not buried among eleven patch releases.
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  # The workflows themselves. A compromised action runs with this repository's
+  # token, and pinning them by tag means trusting whoever can move that tag.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # Base images.
+  #
+  # These are floating tags today -- golang:1.26-alpine, python:3.13-slim --
+  # which means a rebuild picks up base-image security patches automatically
+  # and also means no two builds are guaranteed identical.
+  #
+  # Digest pinning is the stronger position, but only alongside something that
+  # raises the digests. Pinned without that, a base image freezes at whatever
+  # was current the day somebody pinned it, and the patches that were arriving
+  # for free stop arriving at all -- which is how "we pinned for supply-chain
+  # integrity" turns into a two-year-old OpenSSL.
+  #
+  # This is that something. Once these run reliably, pin the digests.
+  - package-ecosystem: docker
+    directories:
+      - /backend
+      - /ai-services
+      - /satellite-intelligence
+      - /pdf-service
+    schedule:
+      interval: weekly
+
+  # The farmer app. flutter_secure_storage holds the refresh tokens.
+  - package-ecosystem: pub
+    directory: /mobile-app
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: uv
+    directory: /satellite-intelligence
+    schedule:
+      interval: weekly

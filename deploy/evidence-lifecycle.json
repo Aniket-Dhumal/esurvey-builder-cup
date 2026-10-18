@@ -1,0 +1,48 @@
+{
+  "_comment": [
+    "Lifecycle for the evidence bucket. Apply with:",
+    "  gcloud storage buckets update gs://<bucket> --lifecycle-file=deploy/evidence-lifecycle.json",
+    "",
+    "Sizing, so the rules read as decisions rather than numbers: four station",
+    "clips and four stills per claim is about 50 MB, so five lakh claims is",
+    "~24 TB a season (docs/PLATFORM_SCALE_REVIEW.md, A3).",
+    "",
+    "Rule 1 -- chunk parts under uploads/ are working files. A finished upload",
+    "deletes its own parts; this catches the ones whose handset never came",
+    "back, a fortnight after the server stopped waiting for them (the server's",
+    "own sweep is capture_uploads.expires_at, seven days, extended by activity).",
+    "",
+    "Rule 2 and 3 -- evidence cools but is never deleted here. A claim can be",
+    "appealed, and an appeal asks to see the photographs. Nearline after 90",
+    "days is roughly half the storage cost with a retrieval fee nobody pays",
+    "except at appeal; Coldline after a year is the same bargain again. What",
+    "removes evidence is the retention policy in the platform itself",
+    "(internal/retention), which erases against a rule somebody signed, not a",
+    "bucket rule that quietly forgets."
+  ],
+  "lifecycle": {
+    "rule": [
+      {
+        "action": { "type": "Delete" },
+        "condition": {
+          "age": 14,
+          "matchesPrefix": ["uploads/"]
+        }
+      },
+      {
+        "action": { "type": "SetStorageClass", "storageClass": "NEARLINE" },
+        "condition": {
+          "age": 90,
+          "matchesStorageClass": ["STANDARD"]
+        }
+      },
+      {
+        "action": { "type": "SetStorageClass", "storageClass": "COLDLINE" },
+        "condition": {
+          "age": 365,
+          "matchesStorageClass": ["NEARLINE"]
+        }
+      }
+    ]
+  }
+}
