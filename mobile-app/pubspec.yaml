@@ -49,7 +49,7 @@ dependencies:
   # Reminding a farmer that a claim is still on the phone. The phone
   # reminds itself: nothing leaves the handset and nothing needs a
   # network, which is the only kind of reminder this app can promise.
-  flutter_local_notifications: ^19.4.2
+  flutter_local_notifications: ^22.3.2
   webview_flutter: ^4.14.1
   flutter_foreground_task: ^10.0.0
   record: 6.0.0
