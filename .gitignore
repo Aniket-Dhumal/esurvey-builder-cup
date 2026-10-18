@@ -53,14 +53,16 @@ Thumbs.db
 # be: it is copied to every clone and survives every deletion.
 backups/
 
-# Registry records of real, identified farmers, placed here for a trial.
+# Registry records and parcel geometry.
 #
-# The directory itself is tracked, because the reference parcel in it is what
-# the tests and the development stack run on. These are not that: they are
-# names, mobile numbers, land records and boundaries of living people, and
-# they belong on the machine running the trial rather than in a repository
-# that will be cloned, pushed and kept.
-mock_files/trial-*.json
+# Nothing in here is committed any more. The records are names, mobile
+# numbers and land records of living people, and the boundaries are the
+# traced edges of their fields -- a survey number plus its coordinates
+# identifies a household as surely as a name does. This repository is
+# public, so the directory holds only its README and the loader is pointed
+# at a directory outside the tree at run time.
+mock_files/*
+!mock_files/README.md
 
 # Built APKs for a field share. Binaries, rebuilt from source on demand, and
 # the arm64 one alone is 34 MB -- a repository is not a download server.

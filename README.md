@@ -8,6 +8,55 @@ Google Cloud AI Builder Cup
 
 ---
 
+## Demo video
+
+<iframe src="https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/preview" width="860" height="484" allow="autoplay" allowfullscreen></iframe>
+
+[<img src="docs/media/field-capture.jpg" width="860" alt="Watch the eSurvey demo video">](https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing)
+
+**▶ [Watch the demo (3–4 minutes)](https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing)** — end to end: a
+farmer completing a guided self-survey in their own field, and the officer
+console receiving, cross-checking and adjudicating the claim it produced.
+
+---
+
+## Pitch deck
+
+<iframe src="https://docs.google.com/gview?embedded=true&url=https://raw.githubusercontent.com/Aniket-Dhumal/esurvey-builder-cup/main/docs/submission/Agribid-eSurvey-Google-AI.pdf" width="860" height="600"></iframe>
+
+**📄 [Agribid-eSurvey-Google-AI.pdf](docs/submission/Agribid-eSurvey-Google-AI.pdf)**
+— 14 slides: the problem, the verification gap, the Google Cloud workflow, the
+architecture, the opportunity model and the pilot plan.
+
+---
+
+## Architecture
+
+![eSurvey GCP native architecture](docs/media/gcp-architecture.png)
+
+Four bands, left to right in the flow of a claim:
+
+- **Access and delivery** — Cloud DNS, a global Application Load Balancer with
+  Cloud Armor in front, Cloud CDN for the static console. A separate
+  passthrough Network LB carries the live audio, because WebRTC needs UDP and a
+  serverless HTTP front end cannot terminate it.
+- **Application and data** — the Go API, connection pooling, Cloud SQL
+  (PostGIS) with an HA standby, a read replica for reporting, Memorystore for
+  sessions, and BigQuery for taluka-level analytics.
+- **Async flows and AI** — Pub/Sub carries every clip upload into grading;
+  Vertex AI runs Gemini for evidence grading and the officer agent; Earth
+  Engine and a Cloud Run job supply the satellite series; Cloud Tasks handles
+  notifications; the Live API drives the farmer conversation.
+- **Delivery, security and operations** — Cloud Build, Artifact Registry,
+  Workload Identity with no service-account keys, CMEK on the evidence bucket
+  with 90-day key rotation, and a fixed egress IP through Cloud NAT.
+
+This is the target state. Production today is a single connected VM running
+the same containers; the diagram is the path, not a claim about what is
+deployed.
+
+---
+
 ## Details
 
 A disaster hits lakhs of acres in a single day and the claims arrive all at
@@ -36,15 +85,6 @@ Three things separate this from the assessment tools already in the market:
   not "78% confident". A farmer standing on the bund of their own field is not
   a fraudster, and the officer decides.
 
-### Submission links
-
-| | |
-| --- | --- |
-| **Live product** | https://esurvey.mindstrix.com |
-| **Demo video (3–4 min)** | https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing |
-| **Pitch deck (PDF)** | [docs/submission/Agribid-eSurvey-Google-AI.pdf](docs/submission/Agribid-eSurvey-Google-AI.pdf) |
-| **Source** | this repository |
-
 ### Demo credentials
 
 The officer console is at **https://esurvey.mindstrix.com**. Officers sign in
@@ -52,7 +92,7 @@ with an email address and a password.
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Krushi Sahayak — Malegaon, Barshi | `<DEMO EMAIL>` | `<DEMO PASSWORD>` |
+| Krushi Sahayak — Malegaon, Barshi | `aniket.dhumal@nest-iq.ai` | `eSurvey@#12345678` |
 
 That account sees the Malegaon circle: 617 farmers, 878 parcels, the Kharif
 2025–26 survey event and the claims filed against it. It can read a claim,
@@ -64,6 +104,15 @@ The **farmer app** signs in with a one-time code sent to the handset already
 in the registry, so it cannot be demonstrated from a borrowed number. The
 complete farmer journey — guided capture, voice, offline queue, upload — is the
 first half of the demo video above.
+
+### Submission links
+
+| | |
+| --- | --- |
+| **Live product** | https://esurvey.mindstrix.com |
+| **Demo video (3–4 min)** | https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing |
+| **Pitch deck (PDF)** | [docs/submission/Agribid-eSurvey-Google-AI.pdf](docs/submission/Agribid-eSurvey-Google-AI.pdf) |
+| **Source** | this repository |
 
 ### Team
 
@@ -229,21 +278,6 @@ rather than fill the gap with a number.
 
 ---
 
-## Pitch deck
-
-[**docs/submission/Agribid-eSurvey-Google-AI.pdf**](docs/submission/Agribid-eSurvey-Google-AI.pdf)
-— 14 slides: the problem, the verification gap, the Google Cloud workflow, the
-architecture, the opportunity model and the pilot plan.
-
-## Demo video
-
-**https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing**
-— three to four minutes, end to end: a farmer completing a guided self-survey
-in the field, and the officer console receiving, cross-checking and
-adjudicating the claim it produced.
-
----
-
 ## What is in this repository
 
 ```
@@ -252,13 +286,17 @@ web-platform/   Next.js officer console
 backend/        Go API — identity, authorisation, registry, evidence, audit
 ai-services/    Google ADK agents on Gemini — assessment, vision, officer assistant
 reference_data/ the Maharashtra administrative hierarchy, from LGD
-mock_files/     AgriStack registry records
 docs/           specification, architecture, field-trial record, this submission
 ```
 
 The stack runs from `docker compose up --build` against a local Postgres
 (PostGIS) and Redis. `docs/` carries the setup, the production topology and the
 security review.
+
+**Registry data is not in this repository.** Farmer records and parcel
+geometry describe real people and their land, so they are supplied at run time
+from a directory outside the tree and never committed. See
+`mock_files/README.md` for the shape the loader expects.
 
 ### What is honestly not finished
 
@@ -270,7 +308,7 @@ than one that does not:
   but shown a synthetic test image the agent refuses to produce a figure, which
   is the guardrail working rather than a gap.
 - **AgriStack returns no geometry** for our participant credentials, so parcel
-  boundaries are traced and carried in `mock_files/`.
+  boundaries are field-traced.
 - **No SAR yet.** Optical NDVI cannot see through the cloud that follows a
   cyclone.
 - **Circles are almost entirely unmapped** in LGD — 357 of 358 talukas have
@@ -279,12 +317,6 @@ than one that does not:
 ---
 
 ## Screens
-
-**The GCP-native architecture.** Access and delivery, application and data,
-async flows and AI, then delivery, security and operations. This is the target
-state; production today is a single connected VM.
-
-![eSurvey GCP native architecture](docs/media/gcp-architecture.png)
 
 **The officer console.** One place to investigate a claim — worklists, the
 parcel registry, assessment routing — built around the review workflow the
