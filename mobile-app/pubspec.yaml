@@ -52,7 +52,7 @@ dependencies:
   flutter_local_notifications: ^19.4.2
   webview_flutter: ^4.14.1
   flutter_foreground_task: ^10.0.0
-  record: 6.0.0
+  record: 7.1.2
   flutter_pcm_sound: ^3.3.3
   web_socket_channel: ^3.0.3
   flutter_webrtc: ^1.6.2+hotfix.3
