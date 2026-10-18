@@ -215,7 +215,7 @@ jobs:
       # This repository holds farmer identity and land records. A committed
       # credential is the one mistake that cannot be undone by a revert.
       - name: Scan history
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
