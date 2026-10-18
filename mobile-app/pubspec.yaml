@@ -77,7 +77,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
-  sqflite_common_ffi: ^2.4.0+3
+  sqflite_common_ffi: ^2.4.4
 
   # Declared rather than leaned on through flutter_test, which is where it
   # arrives from. The voice queue caps how long one line may hold the engine, and
