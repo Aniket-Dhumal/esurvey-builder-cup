@@ -14,6 +14,17 @@ web-platform/  Next.js officer console (static export, client-only)
 docs/          the platform specification and development plan
 ```
 
+## Team
+
+| Area | Owner |
+| --- | --- |
+| Backend | [@sharvari0311](https://github.com/sharvari0311) |
+| AI services and backend | [@Aniket-Dhumal](https://github.com/Aniket-Dhumal) |
+| Web frontend | [@harale-commits](https://github.com/harale-commits) |
+| Mobile app | [@chaitanya-mhetre](https://github.com/chaitanya-mhetre) |
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md).
+
 ## Run it
 
 ```bash
