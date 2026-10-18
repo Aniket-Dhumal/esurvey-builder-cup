@@ -1,0 +1,121 @@
+{
+  "header": {
+    "version": "0.1.0",
+    "message_id": "demo-home-farm-0000-0000-000000000001",
+    "message_ts": "2026-09-21T00:00:00+00:00",
+    "action": "on-seek",
+    "status": "succ",
+    "status_reason_code": "NA",
+    "status_reason_message": "null",
+    "total_count": 1,
+    "completed_count": 1
+  },
+  "message": {
+    "transaction_id": "demo-home-farm",
+    "correlation_id": "demo-home-farm",
+    "search_response": [
+      {
+        "reference_id": "99900000001",
+        "data": {
+          "reg_records": {
+            "state_lgd_code": "27",
+            "FarmerData": {
+              "farmer_id": "99900000001",
+              "farmer_name": "Demo Farmer (technical test)",
+              "aadhaar_type": null,
+              "aadhaar": "0000",
+              "aadhaar_hash": "487abd86d12d8cb468aeb5c8ed42077a947b91a5b142b4f3b1927d53da681583",
+              "dob": "01-01-1990",
+              "gender": "Male",
+              "state_lgd_code": "27",
+              "district_lgd_code": "496",
+              "sub_district_lgd_code": "4246",
+              "village_lgd_code": "562111",
+              "mobile_no": "9820000001",
+              "address": "Demo parcel for technical testing; not a real holding",
+              "farmer_category": "Marginal Farmer (Farmer having Land <1 Hectare)",
+              "identifier_type": "S/o",
+              "identifier_name": "Demo",
+              "caste_category": "General"
+            },
+            "land_data": [
+              {
+                "farmer_id": "99900000001",
+                "owner_name_ror": "Demo Farmer (technical test)",
+                "farm_id": "DEMO-HOME-0001",
+                "village_lgd_code": "562111",
+                "district_lgd_code": "496",
+                "sub_district_lgd_code": "4246",
+                "survey_number": "101",
+                "sub_survey_number": "*",
+                "plot_geometry": {
+                  "type": "MultiPolygon",
+                  "coordinates": [
+                    [
+                      [
+                        [
+                          72.8520284,
+                          19.127157
+                        ],
+                        [
+                          72.8526264,
+                          19.1273694
+                        ],
+                        [
+                          72.852258,
+                          19.1279298
+                        ],
+                        [
+                          72.8517797,
+                          19.127627
+                        ],
+                        [
+                          72.8520284,
+                          19.127157
+                        ]
+                      ]
+                    ]
+                  ]
+                },
+                "ulpin": null,
+                "owner_extent": "0.41",
+                "area_unit": "Hectare",
+                "land_usage_type": "",
+                "farmer_land_type": null,
+                "khata_number": "1",
+                "joint_owners": [],
+                "match_basis": "demo fixture",
+                "geometry_status": "exact"
+              }
+            ],
+            "crop_sown_data": [
+              {
+                "farm_id": "DEMO-HOME-0001",
+                "state_lgd_code": "27",
+                "village_lgd_code": "562111",
+                "unique_land_identifier": null,
+                "survey_number": "101",
+                "year": "2026-2027",
+                "season": "Kharif",
+                "sown_area_integer": 0,
+                "sown_area_decimal": "41",
+                "sown_area_unit": "HECTARE",
+                "crop_code": "0201001",
+                "crop_name": "Soybean",
+                "crop_photo": [],
+                "sowing_date": "24/06/2026",
+                "irrigation_type": "Non Irrigated"
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "pagination": {
+      "page_number": 1,
+      "page_size": 1,
+      "total_count": 1
+    },
+    "locale": "en"
+  }
+}

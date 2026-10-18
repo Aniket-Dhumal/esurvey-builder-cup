@@ -1,0 +1,6 @@
+Farmer-captured photographs land here, one file per capture, named by content
+hash. In a container this path is a named volume; the directory is carried in
+the image only so Docker initialises that volume with the right ownership --
+the runtime image is distroless and has no shell to mkdir with.
+
+Not committed: this is evidence attached to a named person.
