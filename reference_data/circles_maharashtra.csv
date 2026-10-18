@@ -1,0 +1,21 @@
+level,code,name,parent_level,parent_code
+circle,C-4246-01,Barshi,sub_district,4246
+circle,C-4246-02,Agalgaon,sub_district,4246
+circle,C-4246-03,Gaudgaon,sub_district,4246
+circle,C-4246-04,Khandavi,sub_district,4246
+circle,C-4246-05,Nari,sub_district,4246
+circle,C-4246-06,Pangaon,sub_district,4246
+circle,C-4246-07,Pangri,sub_district,4246
+circle,C-4246-08,Surdi,sub_district,4246
+circle,C-4246-09,Upale Dumala,sub_district,4246
+circle,C-4246-10,Vairag,sub_district,4246
+village,562083,Barshi,circle,C-4246-01
+village,562019,Agalgaon,circle,C-4246-02
+village,562137,Gaudgaon,circle,C-4246-03
+village,562086,Khandavi,circle,C-4246-04
+village,562060,Nari (Bhandewadi),circle,C-4246-05
+village,562077,Pangaon,circle,C-4246-06
+village,562046,Pangri,circle,C-4246-07
+village,562102,Surdi,circle,C-4246-08
+village,562120,Upale (Du.),circle,C-4246-09
+village,562124,Vairag,circle,C-4246-10
