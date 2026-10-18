@@ -10,23 +10,37 @@ Google Cloud AI Builder Cup
 
 ## Demo video
 
-<iframe src="https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/preview" width="860" height="484" allow="autoplay" allowfullscreen></iframe>
+[<img src="docs/media/demo-preview.gif" width="860" alt="eSurvey demo — the farmer is the surveyor, guided by Gemini Live">](https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing)
 
-[<img src="docs/media/field-capture.jpg" width="860" alt="Watch the eSurvey demo video">](https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing)
+**▶ [Watch the full demo, 3 min 57 s](https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing)**
+ · [play it here in the repository](docs/media/esurvey-demo.mp4)
 
-**▶ [Watch the demo (3–4 minutes)](https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing)** — end to end: a
-farmer completing a guided self-survey in their own field, and the officer
-console receiving, cross-checking and adjudicating the claim it produced.
+End to end: a farmer completing a guided self-survey in their own field, every
+frame checked on the way in, and the officer console cross-checking and
+adjudicating the claim it produced — including the guardrail refusing a damage
+figure when no field photograph supports one.
 
 ---
 
 ## Pitch deck
 
-<iframe src="https://docs.google.com/gview?embedded=true&url=https://raw.githubusercontent.com/Aniket-Dhumal/esurvey-builder-cup/main/docs/submission/Agribid-eSurvey-Google-AI.pdf" width="860" height="600"></iframe>
+![Slide 1](docs/deck/slide-01.png)
+![Slide 2](docs/deck/slide-02.png)
+![Slide 3](docs/deck/slide-03.png)
+![Slide 4](docs/deck/slide-04.png)
+![Slide 5](docs/deck/slide-05.png)
+![Slide 6](docs/deck/slide-06.png)
+![Slide 7](docs/deck/slide-07.png)
+![Slide 8](docs/deck/slide-08.png)
+![Slide 9](docs/deck/slide-09.png)
+![Slide 10](docs/deck/slide-10.png)
+![Slide 11](docs/deck/slide-11.png)
+![Slide 12](docs/deck/slide-12.png)
+![Slide 13](docs/deck/slide-13.png)
+![Slide 14](docs/deck/slide-14.png)
+![Slide 15](docs/deck/slide-15.png)
 
-**📄 [Agribid-eSurvey-Google-AI.pdf](docs/submission/Agribid-eSurvey-Google-AI.pdf)**
-— 14 slides: the problem, the verification gap, the Google Cloud workflow, the
-architecture, the opportunity model and the pilot plan.
+**📄 [Download the deck as a PDF](docs/submission/Agribid-eSurvey-Google-AI.pdf)**
 
 ---
 
