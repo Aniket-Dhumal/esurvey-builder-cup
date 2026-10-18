@@ -44,7 +44,7 @@ dependencies:
   http: ^1.6.0
   connectivity_plus: ^7.3.1
   crypto: ^3.0.7
-  sensors_plus: 6.1.1
+  sensors_plus: 7.1.1
   workmanager: ^0.10.9
   # Reminding a farmer that a claim is still on the phone. The phone
   # reminds itself: nothing leaves the handset and nothing needs a
