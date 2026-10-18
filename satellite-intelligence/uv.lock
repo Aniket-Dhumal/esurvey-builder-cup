@@ -376,7 +376,7 @@ wheels = [
 
 [[package]]
 name = "earthengine-api"
-version = "1.7.41"
+version = "1.7.48"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "google-api-python-client" },
@@ -386,9 +386,9 @@ dependencies = [
     { name = "httplib2" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/88/5b/f56443748ca396c77cdb2462bbfd82bdeeb70c20073587ca2d5fcb6ea855/earthengine_api-1.7.41.tar.gz", hash = "sha256:6c08ac96bab38b8feadab4c050082c6ef8cf8aaf9b9a1d1d8ebc8290b44f95a2", size = 434479, upload-time = "2026-08-24T21:48:56.519Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/ba/9cdffd495821753f6743922e0ad47489dc2201cac59b5ca77128febcd028/earthengine_api-1.7.48.tar.gz", hash = "sha256:313450a86827f500cc2a262e5e9b71e8c6613a1412046ac915818d0374496d18", size = 435384, upload-time = "2026-10-12T18:42:10.259Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2c/3a/0f8c6a4ed670167a67a865e43df7c1c1335b464d7849471c10a241d8e0b1/earthengine_api-1.7.41-py3-none-any.whl", hash = "sha256:76e3e439bbec51e5ff1764edbd0eb127141f83bf3781c45cb0c3b1caf3e07899", size = 481542, upload-time = "2026-08-24T21:48:54.739Z" },
+    { url = "https://files.pythonhosted.org/packages/69/da/8f4797075ca9558e24d5ad366617e0407cc61eb2bd4703040cf8cf2eba65/earthengine_api-1.7.48-py3-none-any.whl", hash = "sha256:7294e43b8cb8570273195ac026a4393488c37c7ff71a92f237e7535689b8223a", size = 482542, upload-time = "2026-10-12T18:42:08.699Z" },
 ]
 
 [[package]]
@@ -477,15 +477,15 @@ wheels = [
 
 [[package]]
 name = "google-auth"
-version = "2.57.0"
+version = "2.62.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
     { name = "pyasn1-modules" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/41/64/55f316b729f92a552d26e00aa3b1542b2e149d0a5efe2842afff0cac7af7/google_auth-2.57.0.tar.gz", hash = "sha256:9b4f96d6a1feb5f7201231f47cfb3de08d8f176f8a61f9e461555116e95a8789", size = 370794, upload-time = "2026-08-25T19:18:26.419Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/b9/4b2528f30114b106e3c3a7298ba38d85e682fd1f83fe7c4a5b77c7677082/google_auth-2.62.0.tar.gz", hash = "sha256:0bef0ce54bdf9ce226c5d66e4264413bd918141c31bbe49fb52eac882f513d69", size = 398180, upload-time = "2026-10-12T19:20:48.328Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/f3/8508a702c094af5f6e89773f4dfdeee74913df0f41a02c21b5e7dc3d75cd/google_auth-2.57.0-py3-none-any.whl", hash = "sha256:180dafe015cfb62193bea26b677500fab5b9fd51a1e825ebf3ad9b182047ae59", size = 259728, upload-time = "2026-08-24T21:55:08.449Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/a3/87fe9b7203ec2e56ea6a57c75e6d632eaf9487c7f7978cdad1d801bee0af/google_auth-2.62.0-py3-none-any.whl", hash = "sha256:4ff4319aeb4ad128409759d397a9fcafad126d0031d241cc0dd6b9a00b43e3f3", size = 267911, upload-time = "2026-10-12T19:20:46.355Z" },
 ]
 
 [[package]]
