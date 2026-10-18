@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Referenced from AndroidManifest.xml so the launcher name can be
+         localised later (Marathi/Hindi) without touching the manifest. -->
+    <string name="app_name">eSurvey</string>
+</resources>

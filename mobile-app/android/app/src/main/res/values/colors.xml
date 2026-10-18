@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Behind the launcher icon's mark.
+
+      White rather than the brand green: the mark is itself green, and a green
+      mark on a green tile loses the leaves at the size a launcher actually
+      draws it. The same white the console's favicon sits on.
+    -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>

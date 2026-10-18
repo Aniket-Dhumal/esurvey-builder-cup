@@ -1,0 +1,158 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- A crop-loss claim is worthless without a photo of the damage. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- A photo only counts as evidence if it was taken on the farmer's own plot,
+         and the geofence needs GPS-grade fixes to tell adjacent plots apart.
+         COARSE must be declared alongside FINE on Android 12+, where the user can
+         downgrade to approximate location; without it the request fails outright
+         instead of degrading. No background location: the fix is taken at the
+         moment of capture, with the app open. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- Reports queue offline and upload when signal returns; NETWORK_STATE is
+         how the app notices it has, instead of burning battery on blind retries. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- A claim waits on this phone until its evidence is complete, and until
+         then the office has never heard of it. If the farmer walks away
+         mid-walk, a notification from this phone is the only thing that can
+         say so. Nothing leaves the handset: no server is told and no message
+         is sent, so it works in a village with no signal — which is where an
+         unfinished claim is most likely to be sitting. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- A claim is about 18 MB of video, and on a village connection that is
+         minutes. A farmer who pockets the phone mid-upload used to stop it: the
+         send ran off a thirty-second timer the moment the screen slept, with
+         WorkManager waking behind it roughly every fifteen minutes. The trial
+         lost most of an hour that way.
+
+         DATA_SYNC is the service type Android 14+ requires to be declared for
+         exactly this: finishing a transfer the user started. It runs only while
+         an upload is in flight and shows a notification the whole time, so
+         nothing happens out of the farmer's sight. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+
+    <!-- RECORD_AUDIO is not declared here, and it is in the built APK, and as of
+         the live guidance work it is genuinely used.
+
+         It was not, for most of this app's life, and the note below is kept because
+         the reasoning still governs the walk: the camera records with
+         enableAudio: false and the walk never asks for the microphone. What changed
+         is that a farmer may now hold a spoken conversation with the assistant, and
+         that needs the microphone at runtime.
+
+         It is requested at the point of consent and nowhere else. Not at launch, not
+         in the access flow with the camera and the location: a farmer who has
+         declined the assistant, or whose farm cannot carry it, is never asked for a
+         microphone they will not use. See core/live_consent.dart and
+         live/live_session.dart.
+
+         The original note follows, because it is why the permission was left in the
+         manifest rather than stripped, and that decision is unchanged.
+         The camera plugin's Android implementation declares it unconditionally
+         and manifest merging brings it in, so the farmer is asked for
+         microphone access this app never uses: the camera runs with
+         enableAudio: false and nothing else records.
+
+         It could be stripped with tools:node="remove". It has not been,
+         deliberately: with audio disabled CameraX does not need the
+         permission, but "does not need" is a judgement about every Android
+         build in Maharashtra, and the cost of being wrong is a farmer standing
+         in a field whose phone will not record. That is a worse outcome than an
+         unused permission. Worth removing once it can be tried on real
+         handsets; see docs/FIELD_TRIAL_2026-09-28.md.
+
+         One handset now says so: a Vivo V2253 on Android 15 recorded four
+         station clips with the microphone permission never requested and never
+         granted. That is evidence, not yet a decision, because it is one
+         vendor's camera stack and the claim being tested is about all of them.
+         Worth stripping after the same result on a second vendor, ideally a
+         Samsung or a Xiaomi, since those are what the trial districts carry.
+
+         BLUETOOTH, VIBRATE, MODIFY_AUDIO_SETTINGS and
+         FOREGROUND_SERVICE_SHORT_SERVICE arrive by manifest merge from
+         flutter_webrtc, which is there for the spoken assistant.
+
+         MODIFY_AUDIO_SETTINGS is genuinely used: WebRTC routes audio between the
+         earpiece and the speaker, and a conversation on a handheld phone needs
+         that. The other three are not. BLUETOOTH is for headsets, which nobody in
+         a field is wearing; VIBRATE and the short-service permission are for
+         call-style notifications this app does not raise.
+
+         They have not been stripped with tools:node="remove", for the reason
+         RECORD_AUDIO was not: "does not need" is a judgement about every Android
+         build in Maharashtra, and removing a permission a media stack expects is
+         the kind of change that fails on one vendor's handset in a field. Worth
+         removing once the assistant has actually been used on real phones, which
+         it has not yet been.
+
+         The size is the larger cost and is worth stating plainly: the native
+         WebRTC stack takes the release APK from 22.3 MB to 34.2 MB, a 12 MB
+         increase on every handset, for a feature that is off unless a build turns
+         it on. If the trial does not need it, a build without flutter_webrtc is
+         12 MB smaller and the assistant still works over the WebSocket, which is what
+         the fallback is for.
+
+         RECEIVE_BOOT_COMPLETED and WAKE_LOCK arrive by manifest merge from
+         flutter_foreground_task and are not used by this app: autoRunOnBoot is
+         false, so nothing here starts at boot. They are declared by the plugin
+         rather than by us, and removing them would mean forking it. -->
+    <application
+        android:label="@string/app_name"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- Specifies an Android theme to apply to this Activity as soon as
+                 the Android process has started. This theme is visible to the user
+                 while the Flutter UI initializes. After that, this theme continues
+                 to determine the Window background behind the Flutter UI. -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <!-- The service that keeps an upload alive across a locked screen.
+             The class name is the plugin's and must not be changed; the type is
+             declared here rather than in the plugin because Android 14+ requires
+             the app to state which foreground service types it uses, and
+             dataSync is the only one this app has any business with. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

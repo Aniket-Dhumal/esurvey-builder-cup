@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The launcher icon on Android 8 and later.
+
+  The system masks these two layers to whatever shape the handset uses, so the
+  mark lives in the foreground's safe zone and the background is a plain
+  colour the mask may cut freely. The monochrome layer is what Android 13
+  recolours for a themed home screen; without it the icon keeps its own
+  colours there and looks pasted on.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_monochrome" />
+</adaptive-icon>

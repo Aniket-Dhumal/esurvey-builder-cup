@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug builds only. This file lives under src/debug and is never merged into
+  a release APK.
+
+  Android has refused cleartext by default since API 28, which is the posture
+  a release build must keep: this platform carries identified farmers' land,
+  losses and photographs, and a bearer token on a village Wi-Fi is a session
+  anybody on that network can take.
+
+  Development needs the opposite, because the API runs on a laptop over plain
+  HTTP. Rather than let somebody reach for android:usesCleartextTraffic="true"
+  in the main manifest, which would ship, the exception is scoped here: to
+  debug builds, and to the addresses a developer actually uses.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- The Android emulator's route to the host machine. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+
+        <!--
+          Loopback, which is how a physical handset should reach the API:
+
+              adb reverse tcp:8090 tcp:8090
+
+          The phone then connects to its own 127.0.0.1:8090 and adb carries it
+          to the laptop. That needs no inbound firewall rule and no LAN
+          binding, so the API keeps its loopback-only exposure while a real
+          device is testing against it.
+        -->
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+
+        <!--
+          Direct LAN addresses, for when the tunnel is not in use. Android's
+          network security config takes literal addresses and not CIDR ranges,
+          so each is one machine and goes stale the moment DHCP hands the
+          laptop a different one. If the app suddenly cannot reach an API it
+          reached yesterday, this list is the first thing to check.
+        -->
+        <domain includeSubdomains="false">192.168.0.107</domain>
+        <domain includeSubdomains="false">192.168.1.2</domain>
+    </domain-config>
+</network-security-config>
