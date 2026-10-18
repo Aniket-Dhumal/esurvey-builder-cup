@@ -1,0 +1,10 @@
+# The Gemini key lives in ai-services/.env and is read at runtime via compose's
+# env_file. It must never be copied into a layer.
+.env
+*.env
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
