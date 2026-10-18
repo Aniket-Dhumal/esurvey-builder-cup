@@ -1,435 +1,303 @@
-# eSurvey — post-disaster crop loss assessment
+<img src="web-platform/public/brand/logo-esurvey.png" width="300" alt="eSurvey">
 
-Assesses crop damage for a land parcel by combining AgriStack registry records,
-Sentinel-2 vegetation indices and Copernicus DEM terrain, and presents the
-result for officer review under the revenue hierarchy that actually decides
-these claims.
+# eSurvey — Google AI for trusted crop-insurance claims
 
-```
-mock_files/    AgriStack records (real, with traced geometry)
-reference_data/ the Maharashtra administrative hierarchy, from LGD
-backend/       Go API — identity, authorization, registry, satellite, storage
-ai-services/   Gemini assessment agent (Google ADK)
-web-platform/  Next.js officer console (static export, client-only)
-docs/          the platform specification and development plan
-```
+**Team Agribid** · Team leader: Aniket Dhumal
+**PS1 — BFSI: Intelligent Risk, Fraud & Financial Experiences**
+Google Cloud AI Builder Cup
 
-## Team
+---
+
+## Details
+
+A disaster hits lakhs of acres in a single day and the claims arrive all at
+once. The evidence does not. Thousands of dispersed parcels need assessment in
+the same week, repeated field visits raise cost, and genuine farmers wait in
+the same queue as suspicious claims.
+
+eSurvey is the layer that produces **the evidence**, not the payout decision.
+A farmer walks their own field with the phone they already own; Gemini Live
+tells them what to film; the clips are location-stamped, time-stamped and
+bound to a parcel before they leave the handset. Vertex AI reads what is
+visible, Earth Engine says what changed on that parcel across the season, and
+Google ADK puts the two beside the registry record and names where they
+disagree. The officer gets one dossier per claim instead of a folder of
+photographs.
+
+Three things separate this from the assessment tools already in the market:
+
+- **The spike is the use case.** Fraud detection in BFSI is built for a steady
+  stream. Crop-loss fraud arrives as a surge, in the two weeks after a
+  calamity, in the places assessors cannot reach in time.
+- **Evidence has a chain of custody.** Position is read live from the handset
+  at the moment of capture, never from the image file — browsers strip EXIF and
+  EXIF is trivially edited. Six provenance gates travel with every clip.
+- **Nothing is auto-refused.** A gate reports "taken 340 m outside the plot",
+  not "78% confident". A farmer standing on the bund of their own field is not
+  a fraudster, and the officer decides.
+
+### Submission links
+
+| | |
+| --- | --- |
+| **Live product** | https://esurvey.mindstrix.com |
+| **Demo video (3–4 min)** | https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing |
+| **Pitch deck (PDF)** | [docs/submission/Agribid-eSurvey-Google-AI.pdf](docs/submission/Agribid-eSurvey-Google-AI.pdf) |
+| **Source** | this repository |
+
+### Demo credentials
+
+The officer console is at **https://esurvey.mindstrix.com**. Officers sign in
+with an email address and a password.
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Krushi Sahayak — Malegaon, Barshi | `<DEMO EMAIL>` | `<DEMO PASSWORD>` |
+
+That account sees the Malegaon circle: 617 farmers, 878 parcels, the Kharif
+2025–26 survey event and the claims filed against it. It can read a claim,
+record a finding and run the officer assistant. It cannot mint accounts or
+grant roles — whoever can create an officer must not also be able to approve a
+payout with it, so that is a separate role by design.
+
+The **farmer app** signs in with a one-time code sent to the handset already
+in the registry, so it cannot be demonstrated from a borrowed number. The
+complete farmer journey — guided capture, voice, offline queue, upload — is the
+first half of the demo video above.
+
+### Team
 
 | Area | Owner |
 | --- | --- |
-| Backend | [@sharvari0311](https://github.com/sharvari0311) |
-| AI services and backend | [@Aniket-Dhumal](https://github.com/Aniket-Dhumal) |
-| Web frontend | [@harale-commits](https://github.com/harale-commits) |
-| Mobile app | [@chaitanya-mhetre](https://github.com/chaitanya-mhetre) |
+| Backend — Go API, PostGIS schema, capture fences | [@sharvari0311](https://github.com/sharvari0311) |
+| AI services and backend — agents, evidence grading, live relay | [@Aniket-Dhumal](https://github.com/Aniket-Dhumal) |
+| Web frontend — officer console | [@harale-commits](https://github.com/harale-commits) |
+| Mobile app — farmer field capture | [@chaitanya-mhetre](https://github.com/chaitanya-mhetre) |
 
 See [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
-## Run it
+---
 
-```bash
-cp .env.example .env
-./scripts/gen-secrets.sh >> .env    # then delete the blank originals
-# fill in ESURVEY_AI_GOOGLE_API_KEY and SATELLITE_API_KEY
+## Problem severity
 
-docker compose up --build
-```
+**5.94 lakh crop-insurance applications were rejected in Maharashtra across two
+seasons.**
 
-Four containers: Postgres (PostGIS), Redis, the assessment agent, the API.
-Postgres and Redis are published on loopback only — they hold the officer roll
-and every live session.
-
-The console is separate, because it compiles to static files:
-
-```bash
-cd web-platform
-npm install && npm run dev          # http://localhost:3000
-```
-
-Sign in with `ESURVEY_BOOTSTRAP_ADMIN_USERNAME` and the generated password.
-That account can do exactly one thing until it sets a password of its own.
-
-Then load the administrative hierarchy — 45,305 rows, about two seconds, and
-safe to re-run:
-
-```bash
-docker compose run --rm --no-deps api lgd-load /app/reference_data/lgd_maharashtra.csv
-docker compose run --rm --no-deps api lgd-load /app/reference_data/circles_maharashtra.csv
-```
-
-See `reference_data/README.md` — in particular for why circles are almost
-entirely missing and what it takes to add them.
-
-### Without Docker
-
-```bash
-cd ai-services && uv run uvicorn esurvey_ai.main:app --port 8100
-cd backend && go run ./cmd/server
-```
-
-The backend still needs a reachable Postgres and Redis; everything it needs is
-in `.env.example`.
-
-## Who can do what
-
-Authorization has two axes, and both must pass on every request.
-
-**What** — the permissions a role carries. The matrix lives in
-`backend/internal/rbac`, in Go rather than in the database: it is a policy
-artifact that should change as a reviewed diff with a test beside it, and
-keeping it out of SQL removes a standing privilege-escalation path.
-
-**Where** — the jurisdiction the role was granted in. A Tehsildar holds
-`assessment:approve` inside their own taluka and nowhere else. Scoping is
-pushed into the SQL (`jurisdictions.ancestor_ids && $1`, GIN-indexed) rather
-than applied to a loaded result set, because filtering afterwards is one
-forgotten early return away from a leak and does not paginate either.
-
-| Role | Carries |
+| Season | Applications rejected |
 | --- | --- |
-| `system_admin` | accounts, role grants, audit — and **nothing** about a claim |
-| `state_officer` | read and escalate, statewide |
-| `district_magistrate` | review, approve, escalate, audit |
-| `tehsildar` | review, approve, escalate |
-| `mandal_officer` | create, review, escalate |
-| `talathi` | create, review, field survey |
-| `krushi_sahayak` | create, review, field survey |
-| `farmer` | submit a claim, read their own records |
+| Kharif 2024 | 4,67,441 |
+| Rabi 2024–25 | 1,26,830 |
 
-Two of those are load-bearing and easy to undo by accident. `system_admin`
-cannot touch a claim: whoever can mint an officer account must not also be able
-to approve a payout with it. And Talathi and Krushi Sahayak both hold
-`assessment:review`, because the joint panchnama is signed by the revenue side
-and the agriculture side together.
+The reasons on record include **barren land** and **incorrect land and area
+details** — both of them questions a field check answers and a form does not.
+That is the gap: verification capacity does not exist at the moment the claims
+arrive, so decisions get made on paper that should have been made on the
+parcel.
 
-A circle (mandal / saza) has no LGD code — LGD stops at sub-district and
-resumes at village — so circles carry a locally assigned code and villages hang
-off them. A Circle Officer's jurisdiction is otherwise inexpressible.
+For the size of the problem class, the Coalition Against Insurance Fraud put
+the annual cost of US insurance fraud at **US$308.6 bn** in its 2022 study.
+That figure covers all lines of insurance in another country, not Indian crop
+losses — it is here to size the category, not to claim the number.
 
-## Survey events
+*Sources: Rajya Sabha Q1474, 1 August 2025 (4,67,441 + 1,26,830); Coalition
+Against Insurance Fraud, 2022 study.*
 
-A calamity is notified by a **District Magistrate**, for their own district
-and no other. The notification names the talukas or circles it covers, and a
-farmer may be surveyed against it only if their land sits under one of those
-areas and the incident date falls inside the event window.
+### Why a disaster is the hard case
 
-```
-SE-2026-496-001   Unseasonal hailstorm, Barshi and Solapur North
-                  hailstorm · 2026-08-20 to 2026-08-22 · 192 villages
-                  draft → declared → open → closed → assessment_complete
-```
+- A calamity puts thousands of parcels into assessment in the same week.
+- The 72-hour localised-calamity intimation window leaves no slack for travel.
+- A village officer pair cannot walk every parcel in a taluka after a
+  hailstorm. The parcels are one to two hectares, dispersed, and often
+  unreachable by road after the same weather that caused the loss.
+- Optical satellite imagery is least useful exactly then, because cloud follows
+  a cyclone. On our reference parcel a 110-day kharif window yielded four usable
+  Sentinel-2 passes with a 60-day gap in the middle.
 
-The district is taken from the declaring officer's posting rather than the
-request body, and the database refuses an area outside it — a rule with that
-consequence should not depend on every future write path remembering it.
-Declaring is separate from drafting, because a notification is something a
-Collector signs.
+---
 
-Village codes are not accepted as areas. A hailstorm across a taluka is not a
-hundred-row form, and a village-by-village notification is not how a calamity
-is declared.
+## Financial data
 
-## The console
+### The market this sits in
 
-```
-Officers
-  /                Dashboard
-  /worklist        what I must verify, oldest deadline first
-  /verify?id=      the report, the blind, record a finding, adjudicate
-  /events          survey events; a Collector declares from here
-  /reports         loss reports, filed and tracked
-  /assessments     satellite + agent assessments
-  /farmers  /parcels
-  /admin           officer accounts and postings
-  /audit           the trail
+| | |
+| --- | --- |
+| **₹2.06 lakh crore+** | PMFBY claims paid since inception, through Rabi 2025–26 |
+| **₹9,837.61 crore** | Kharif 2025 claims already paid, reported by PIB on 29 August 2026 |
 
-Farmers
-  /my              the whole journey on one screen
-```
+*Source: PIB, 29 August 2026. Claims paid are market context — they are not
+fraud losses and not software revenue.*
 
-The sidebar renders only what the signed-in officer can use — a Talathi sees
-*My worklist* and not *Officer accounts*. That is a courtesy, not a control:
-the server checks every request regardless. What it buys is a navigation an
-officer can trust, rather than one that teaches them which links give 403.
+### The unit economics, on one portfolio
 
-## The farmer app
+Illustrative model on a **₹200 crore claims portfolio** — 1 lakh claims at an
+average claim of ₹20,000. Every input is an assumption, stated so it can be
+argued with:
 
-One screen, `/my`, installable to a home screen. **Both journeys are the same
-journey**: with a network the report reaches the office as it is made, without
-one it is written to the handset and sent when signal returns. There is no
-offline mode to find and turn on — the farmer is told which happened and
-nothing else changes.
+| Line | Assumption | Value |
+| --- | --- | --- |
+| Fraud exposure | 3% of portfolio value | ₹6.0 crore |
+| Potential gross avoided payouts | 50% of that exposure prevented | ₹3.0 crore |
+| eSurvey service fee | ₹50 per claim × 1 lakh claims | ₹0.5 crore |
+| Net to the insurer, after the fee | | ₹2.5 crore |
 
-### Guided capture, in four stages
+Illustrative, not achieved savings and not a price quote. The ₹2.5 crore
+excludes investigation, integration and other costs the insurer still carries.
 
-One photograph of the middle distance answers nothing. Three answer different
-questions and an assessor needs all of them.
+### Who buys it
 
-```
-1  पूर्ण शेत      wide shot     is this a field, what state is it in
-2  नुकसान         the damage    lodging, shattering, submersion look nothing alike
-3  पीक            the crop      identifies the crop and its growth stage
-4  आणखी काही      anything else optional
-```
+Insurers and loss assessors buy it; farmers use it. The insurer is paying for a
+reviewable dossier and a shorter queue. The farmer gets a way to document a
+loss without travel, a literacy barrier or an English form standing in the way.
 
-Wide first, because it is taken from the edge where the farmer already is —
-walk into the middle and that shot is gone.
+### How a pilot would be judged
 
-Each stage speaks its instruction, shows what makes the photograph usable, and
-reads the handset while it is being taken:
+| Measure | Method | What it demonstrates |
+| --- | --- | --- |
+| Fraud-signal precision / recall | Adjudicated held-out cases against a rule-only baseline | Incremental value from Gemini and satellite checks |
+| False refusals / missed fraud | Review of clean claims and of missed cases | Farmer harm and remaining risk |
+| Confirmed avoided payouts | Officer-confirmed amounts, appeals tracked | Financial value attributable to eSurvey |
+| Review time and AI cost per claim | The existing workflow compared with the assisted one | Operational benefit and cost viability |
 
-- **Position** — `watchPosition`, so accuracy tightens from 60 m to 6 m while
-  the farmer stands still, and they can see it happening.
-- **Tilt** — "tilt the phone down a little" before the shot, rather than a
-  rejected photograph of the sky a week later. Guidance only, never evidence.
-- **Heading** — recorded, so two photographs from one spot facing opposite
-  ways are distinguishable to the officer reading them later.
-- **Battery and storage** — warned about before the walk, not during it.
+---
 
-### Voice
+## How we solve it with Google's tech stack
 
-Marathi, spoken and on screen. Many farmers read Marathi slowly and some not at
-all; an instruction that arrives only as a paragraph does not arrive. Where a
-device has no Marathi voice it falls back to Hindi, then English, then silence —
-and the text is always there regardless. An English voice reading Devanagari
-produces noise, so it stays quiet instead.
+### One claim, coordinated across Google Cloud
 
-### Nothing waits for a network
+| Claim stage | Google technology | Evidence produced |
+| --- | --- | --- |
+| Guide the farmer | **Gemini Live API on Vertex AI** | Spoken survey guidance and capture prompts |
+| Secure the evidence | **Cloud Storage + Pub/Sub** | Private media with claim-linked processing events |
+| Coordinate the investigation | **Google ADK on Cloud Run** | Parallel evidence checks and structured findings |
+| Analyse visible damage | **Gemini + a custom model on Vertex AI** | Crop observations and validated severity estimates |
+| Cross-check the timeline | **Google Earth Engine** | Parcel-level satellite observations and NDVI history |
+| Prioritise officer review | **Cloud SQL + BigQuery** | Evidence dossier, decisions and portfolio trends |
 
-A photograph is written to IndexedDB before anything else happens. If the app
-is killed on the next line it still exists. `navigator.storage.persist()` asks
-the browser not to evict it.
+### What ADK coordinates
 
-Sync is two passes — drafts, then the photographs of the drafts that landed —
-and is safe to interrupt at any point. A draft records its server id the moment
-it has one, so a crash cannot file twice; a photograph whose acknowledgement is
-lost is re-sent and the server recognises the identical bytes.
+| Agent / stage | Tool or service | Output for the dossier |
+| --- | --- | --- |
+| Intake and quality | Cloud Run + Cloud Storage | Required clips, claim fields, evidence coverage |
+| Visual evidence | Gemini on Vertex AI | Observed crop, visible damage, clip references |
+| Satellite evidence | Earth Engine tool | Dated imagery, NDVI change, quality flags |
+| Record consistency | Cloud SQL / PostGIS tool | Parcel match, duplicate records, declared dates |
+| Evidence synthesis | Gemini with structured output | Agreement, discrepancies, missing information |
+| Decision and learning | Officer review + BigQuery | Recorded disposition and evaluation data |
 
-**Connectivity is probed, not assumed.** `navigator.onLine` reports whether the
-device has a network interface, not whether anything is reachable — a handset
-on a village tower with no working backhaul says "online" while every request
-fails, and that is the common case here. So a HEAD to `/healthz` decides, with
-Next.js's own technique from its offline guide: a probe still pending at 200 ms
-counts as reachable, because a genuinely dead host fails in milliseconds.
+### Gemini Live guides the farmer
 
-**A network failure does not count against the retry budget.** Only a refusal
-does. The office never saw the request, so there is nothing to give up on, and
-a farmer walking between two fields would otherwise burn six attempts on a
-signal that was about to come back.
+The app checks the position, opens the camera and captures claim-linked clips
+while Gemini Live speaks the instruction — *"show the affected plants, then
+slowly turn toward the next survey station"* — and asks for a clearer view when
+what it has been shown will not answer the question. Marathi, spoken and on
+screen, falling back to Hindi and then English where a device has no Marathi
+voice. Recording is local and the upload resumable, because the connection in
+a field is not the connection in an office.
 
-## Self-survey
+### Vertex AI and Earth Engine cross-check the same claim
 
-The farmer photographs their own damage. A village pair cannot walk every
-parcel in a taluka after a hailstorm, and the farmer is already standing in the
-field; the only question is whether what they send back can be trusted.
+- **Vertex AI — what is visible?** Gemini describes the crop and the damage
+  evidence. A custom vision model can estimate severity once trained on
+  expert-labelled field data.
+- **Earth Engine — what changed?** The parcel is queried across dates:
+  cloud-masked Sentinel-2 NDVI against seasonal history and the reported event
+  window.
+- **ADK — where do the findings disagree?** Clips, satellite dates and parcel
+  records are combined, and conflicts and missing coverage are explained with
+  links to the underlying evidence.
+- **The insurer — what action follows?** Request another view, prioritise an
+  inspection, or continue normal review. The outcome is recorded so the next
+  evaluation is better.
 
-**In the browser, not an app.** A farmer files one claim a year. Asking them to
-install an app, from a store they may not have an account for, on a handset
-with 2 GB free, is where most of them stop. A link works on every Android in
-the village. What that costs is a weaker attestation than a signed native app
-could give, and the gates below carry the weight instead.
+NDVI indicates vegetation change, not cause and not payable loss. Cloud cover
+and revisit timing limit what it can say, and the system is built to say so
+rather than fill the gap with a number.
 
-**The position is read live.** Coordinates come from the handset at the moment
-of capture, not from the image file — browsers strip EXIF and EXIF is trivially
-editable anyway. A live reading has to be lied about deliberately.
+### The guardrails we chose to keep
 
-**Six gates, each named rather than scored.** A gate that says "78% confident"
-cannot be put in front of a farmer; "this photograph was taken 340 m outside
-the plot" can.
+- **No ground photograph, no damage figure.** Enforced in the agent and again
+  in the backend, because the agent is a separate deployable and a rollback
+  could change its behaviour without the backend knowing.
+- **Confidence is capped at 0.60 without ground truth**, and nothing
+  fast-tracks past an officer.
+- **The officer assistant reads and drafts; it never decides.** It cannot
+  approve, return, reassign, close, or change a figure.
+- **Identity never reaches the model.** Parcel geometry and crop records do;
+  farmer identifiers do not.
+- **The audit log refuses UPDATE and DELETE at the database.** A log the
+  application can rewrite is not evidence.
 
-```
-inside_parcel           PostGIS containment, 25 m buffer for GNSS drift
-position_fix            the handset fix was better than 100 m
-within_incident_window  taken inside the notified window
-after_the_incident      taken after the loss occurred
-captured_near_upload    taken within a week of being sent
-distinct_image          these exact bytes have not been sent before
-```
+---
 
-**Only two of them disqualify.** A photograph taken outside the plot, or dated
-before the loss, is not evidence of this loss on this parcel and never reaches
-the model. Everything else is a provenance caveat: it travels to the officer,
-and it travels to the model *in the caption*, so a ten-day-old image is
-described as ten days old rather than shown as though it were fresh.
+## Pitch deck
 
-Nothing is refused at the door. A farmer standing on the bund of their own
-field is outside the polygon and is not a fraudster; the officer sees the
-distance and decides.
+[**docs/submission/Agribid-eSurvey-Google-AI.pdf**](docs/submission/Agribid-eSurvey-Google-AI.pdf)
+— 14 slides: the problem, the verification gap, the Google Cloud workflow, the
+architecture, the opportunity model and the pilot plan.
 
-The 25 m buffer is deliberate: consumer GNSS is good to 5–15 m under open sky
-and worse under a canopy, so it absorbs honest drift while leaving the
-neighbouring survey number outside.
+## Demo video
 
-## Sessions
+**https://drive.google.com/file/d/1w_wAz0uuPxLQ0Q-vxbzRQ7oo9ejN0PXF/view?usp=sharing**
+— three to four minutes, end to end: a farmer completing a guided self-survey
+in the field, and the officer console receiving, cross-checking and
+adjudicating the claim it produced.
 
-Officers sign in with a username and an argon2id-hashed password. Farmers get a
-one-time code to the handset already in the registry; there is no password to
-reset at an office they would have to travel to.
+---
 
-Access tokens are Ed25519 JWTs carrying the caller's grants, so an
-authorization decision costs no database round trip. The cost of that — a
-revoked grant staying usable until the token expires — is bounded by a
-15-minute lifetime and by revoking every session the moment a grant changes.
-
-Refresh tokens are opaque, stored hashed in Redis, single-use, and grouped into
-families. Presenting one twice revokes the whole family: it cannot be
-distinguished from a stolen token being used alongside the real one, and the
-cost of being wrong is one sign-in versus indefinite access.
-
-Rotation without signing anyone out: move `ESURVEY_JWT_SEED` into
-`ESURVEY_JWT_PREVIOUS_SEEDS`, set a new one, drop the old entry after one
-access-token lifetime.
-
-## Audit
-
-Every sign-in, refusal, grant and record read is written to `audit_log`, which
-refuses `UPDATE` and `DELETE` at the database. An audit log the application can
-rewrite is not evidence. Read it at `GET /api/v1/admin/audit` — an audit trail
-that needs a database console is one nobody checks.
-
-## API
+## What is in this repository
 
 ```
-GET  /healthz                          liveness
-GET  /readyz                           readiness: postgres, redis, agent, registry
-GET  /.well-known/esurvey-keys         token verification keys
-
-POST /api/v1/auth/officer/login
-POST /api/v1/auth/farmer/otp           request a code
-POST /api/v1/auth/farmer/verify        exchange it for tokens
-POST /api/v1/auth/refresh
-POST /api/v1/auth/logout
-GET  /api/v1/auth/me                   identity, grants, permissions
-POST /api/v1/auth/password
-
-GET  /api/v1/farmers                   farmer:read
-GET  /api/v1/farmers/{farmerID}        farmer:read   + jurisdiction
-POST /api/v1/assessments               assessment:create + jurisdiction
-GET  /api/v1/assessments               assessment:read, scoped
-GET  /api/v1/assessments/{id}          assessment:read, scoped
-POST /api/v1/farmers/{id}/enrol        farmer:enrol — at the counter
-POST /api/v1/reports/{id}/captures     survey:capture — the photograph
-GET  /api/v1/reports/{id}/captures     the evidence and its gate results
-GET  /api/v1/parcels/{farmID}/boundary the geometry a capture is checked against
-
-GET  /api/v1/worklist                  what I must verify
-GET  /api/v1/villages/{code}/authorities   who is allocated to a village
-POST /api/v1/reports                   report:create
-GET  /api/v1/reports                   report:read, scoped
-GET  /api/v1/reports/{id}              report:read
-GET  /api/v1/reports/{id}/print        the printable bilingual form
-POST /api/v1/reports/{id}/allocate     assign to the village pair
-GET  /api/v1/reports/{id}/brief        pre-visit — never the peer figure
-POST /api/v1/reports/{id}/verify       record a finding (allocated only)
-GET  /api/v1/reports/{id}/findings     blind until yours is in
-POST /api/v1/reports/{id}/adjudicate   the figure that leaves the system
-
-POST /api/v1/events                    event:create   — Collector only
-GET  /api/v1/events                    event:read, scoped
-GET  /api/v1/events/{id}               event:read
-POST /api/v1/events/{id}/state         event:declare / event:close
-GET  /api/v1/events/{id}/eligibility   may this parcel be surveyed?
-
-GET  /api/v1/jurisdictions             reference:read
-GET  /api/v1/calamity-types            reference:read
-GET  /api/v1/roles                     reference:read — the matrix itself
-
-POST /api/v1/admin/users               user:create
-GET  /api/v1/admin/users               user:read
-POST /api/v1/admin/users/{id}/roles    role:grant
-POST /api/v1/admin/users/{id}/status   user:update
-GET  /api/v1/admin/audit               audit:read
+mobile-app/     Flutter farmer app — guided capture, voice, offline queue
+web-platform/   Next.js officer console
+backend/        Go API — identity, authorisation, registry, evidence, audit
+ai-services/    Google ADK agents on Gemini — assessment, vision, officer assistant
+reference_data/ the Maharashtra administrative hierarchy, from LGD
+mock_files/     AgriStack registry records
+docs/           specification, architecture, field-trial record, this submission
 ```
 
-An assessment, once signed in:
+The stack runs from `docker compose up --build` against a local Postgres
+(PostGIS) and Redis. `docs/` carries the setup, the production topology and the
+security review.
 
-```bash
-curl -X POST localhost:8090/api/v1/assessments \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"farmer_id":"<farmer id>","farm_id":"<farm id>","incident_date":"2025-10-12"}'
-```
+### What is honestly not finished
 
-The two ids come from the registry this deployment is loaded with: any row of
-`GET /api/v1/farmers` carries both. There is deliberately no example pair here
--- the records are real farmers and their land.
+Stated plainly, because a working prototype that oversells itself is worth less
+than one that does not:
 
-`sowing_date` is optional — it defaults to the parcel's crop declaration.
+- **A real photograph of a damaged field has not yet been through the model.**
+  The chain is proven end to end — capture, geofence, grading, confidence cap —
+  but shown a synthetic test image the agent refuses to produce a figure, which
+  is the guardrail working rather than a gap.
+- **AgriStack returns no geometry** for our participant credentials, so parcel
+  boundaries are traced and carried in `mock_files/`.
+- **No SAR yet.** Optical NDVI cannot see through the cloud that follows a
+  cyclone.
+- **Circles are almost entirely unmapped** in LGD — 357 of 358 talukas have
+  none — so claims there fall through to the Tehsildar.
 
-## How an assessment is produced
+---
 
-The parcel boundary goes to the analytics engine twice: once for a Sentinel-2
-NDVI series over the crop cycle, once for Copernicus DEM terrain. Those figures
-and the registry's own record of what was declared are handed to a Gemini agent,
-which returns a judgement with reasoning an officer can read and argue with.
+## Screens
 
-**NDVI establishes that something grew, and roughly when.** It is not the
-damage signal. Sentinel-2 at 10 m over a one- or two-hectare smallholding
-cannot measure how badly a crop was hurt, and a number derived from it alone
-would be a guess wearing a decimal point. What it is good for is the fraud
-cross-check: a declared crop on a parcel that never rose above bare soil, or a
-curve that peaks two months away from the declared sowing date.
+**The GCP-native architecture.** Access and delivery, application and data,
+async flows and AI, then delivery, security and operations. This is the target
+state; production today is a single connected VM.
 
-**A damage percentage requires ground imagery.** No field photograph, no
-figure — enforced in the agent and again in the backend, because the agent is a
-separate deployable reached over HTTP and a rollback or a swapped model could
-change its behaviour without this service knowing. That duplication is
-deliberate.
+![eSurvey GCP native architecture](docs/media/gcp-architecture.png)
 
-**Terrain contributes susceptibility, not damage.** Flat ground under a
-thriving crop is not a loss, however prone to ponding it is.
+**The officer console.** One place to investigate a claim — worklists, the
+parcel registry, assessment routing — built around the review workflow the
+revenue hierarchy actually uses.
 
-**Nothing fast-tracks.** Confidence is capped at 0.60 without ground truth, and
-every claim reaches at least standard audit.
+![eSurvey officer console dashboard](docs/media/officer-console.jpg)
 
-On the reference parcel this produces `crop_presence: confirmed`, no damage
-figure, and a `crop_type_mismatch` warning — the agent independently spotted
-that an October NDVI peak does not match a June-sown soybean.
+**The field, where all of this is decided.** A farmer standing in their own
+damaged crop with the only device the system can assume they have. Illustrative
+image.
 
-## What is not real yet
+![A farmer documenting crop damage on a handset](docs/media/field-capture.jpg)
 
-**Geometry and crops are mocked.** AgriStack returns `plot_geometry: null` and
-an empty `crop_sown_data` for every farmer reachable on both the Maharashtra
-and Uttar Pradesh deployments — verified across 7 parcels and 3 farmers. The
-two APIs that do guarantee geometry, `/agristack/crop-survey-data` and
-`/agristack/geo-referenced-maps`, return 403 for our participant. See
-`mock_files/README.md`.
+---
 
-**Offline capture is not yet proven on a handset.** The queue, the sync
-engine and the request contract are verified against the live API; IndexedDB,
-the camera, the sensors and the speech synthesis need a real phone.
-
-**Ground capture works; a real photograph is still needed.** The chain is
-proven end to end — capture, geofence, into the agent, confidence cap lifted.
-What it has not yet seen is an actual photograph of a damaged field. Shown a
-synthetic test image the agent says so and refuses, which is the guardrail
-working rather than a gap: a model that produced a confident percentage from a
-solid square would be exactly the failure this design exists to prevent.
-
-**No SAR.** Optical NDVI cannot see through cloud. On the reference parcel a
-110-day kharif window yielded four usable passes with a 60-day gap — if a
-cyclone had landed inside it, the assessment would have had nothing to say.
-
-**No SMS gateway.** Farmer one-time codes are written to the service log.
-`ESURVEY_ENV=production` refuses to start while that is true.
-
-**Circles are almost entirely unmapped.** The LGD hierarchy is loaded in full
-— 35 districts, 358 talukas, 44,911 villages — but circles have no LGD code
-and exist only in district revenue records. 357 of 358 talukas have none, so
-no Circle Officer can be posted in them and claims there fall through to the
-Tehsildar. See `reference_data/README.md`.
-
-## Tests
-
-```bash
-cd backend && go test ./...
-cd ai-services && uv run pytest
-cd web-platform && npx tsc --noEmit && npm run build
-```
-
-The Go suite covers the token parser against algorithm confusion and tampering,
-the permission matrix against the separation-of-duties rules above, and the
-assessment guardrails against the "damage without ground imagery" case. The
-backend image runs `go vet ./... && go test ./...` during the build: a
-container that cannot pass its own authorization tests should not reach a
-registry.
+*Team Agribid · eSurvey · Google Cloud AI Builder Cup · Survey today, secure tomorrow.*
