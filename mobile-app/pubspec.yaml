@@ -39,7 +39,7 @@ dependencies:
   path_provider: ^2.1.6
   flutter_secure_storage: ^11.0.0
   geolocator: ^14.0.3
-  camera: ^0.12.0+2
+  camera: ^0.12.1
   flutter_tts: ^4.2.5
   http: ^1.6.0
   connectivity_plus: ^7.3.1
