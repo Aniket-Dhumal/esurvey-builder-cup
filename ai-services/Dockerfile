@@ -5,7 +5,7 @@
 #   docker build -f ai-services/Dockerfile ai-services
 
 # --- build -------------------------------------------------------------------
-FROM python:3.13-slim AS build
+FROM python:3.15-slim AS build
 
 # uv resolves and installs an order of magnitude faster than pip, and pins the
 # whole tree in a lockfile the image can be rebuilt from byte for byte.
@@ -26,7 +26,7 @@ COPY src/ ./src/
 RUN VIRTUAL_ENV=/opt/venv uv pip install --no-cache --no-deps .
 
 # --- runtime -----------------------------------------------------------------
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 # Not distroless: the google-genai SDK and its transitive tree expect a real
 # Python environment, and cutting it down to nothing would be a maintenance
